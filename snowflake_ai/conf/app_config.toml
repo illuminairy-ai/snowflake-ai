@@ -1,0 +1,62 @@
+[data.connects]
+connect_0 = "snowflake-0"
+
+
+  [data.connect.snowflake-0]
+  auth_type = "keypair"
+  account = ""
+  region = ""
+  user = "tony.liu@yahoo.com"
+  password_env = "SNOWSQL_PWD" # x_env key is used for ref to env variable
+  role = ""  # optional
+  warehouse = ""  # optional
+  database = ""  # optional
+  schema = ""  # optional
+  private_key_phrase_env = "SNOWFLAKE_USER_PRIVATE_KEY_PASSPHRASE"
+  private_key_path_env = "SNOWFLAKE_USER_PRIVATE_KEY_PATH"
+
+
+    [data.connect.snowflake-0.flow_pipeline]
+    type = "prepect-mlflow" # prepect | airflow | kubeflow | prepect-mlflow
+
+
+    [data.connect.snowflake-0.data_setup]
+    stage_model_0 = ""
+
+
+    [data.connect.snowflake-0.data_prep]
+
+
+    [data.connect.snowflake-0.model_dev]
+
+
+    [data.connect.snowflake-0.model_serve]
+
+
+    [data.connect.snowflake-0.flow_test]
+    test_suite_path = "../tests"
+
+
+    [data.connect.snowflake-0.flow_ops]
+
+
+  [data.connect.file-0]
+  type = "local-csv" # prefix-storagetype
+  dir_path = "../../"
+  file_name = ""
+
+
+
+[data.apps]
+app_1 = "app-1"
+
+
+  [data.app.app-1]
+  type = "ml"
+  name = ""
+  data_connects = ["snowflake-0"]
+
+
+    [data.app.app-1.snowflake-0]
+
+
