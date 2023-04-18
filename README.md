@@ -1,13 +1,14 @@
 Snowflake-AI
 =======
 
-Snowflake-AI is a Snowflake-centric Enterprise AI/ML framework with tight integration of popular Python data science libraries, e.g., Pandas, Scikit-Learn, Tensorflow, Pytorch, MLFlow, etc. This project simplifies the process of integrating your company's Snowflake data with those popular libraries, making it easier to develop and deploy machine learning models.
+*Snowflake_AI* is a Snowflake-centric **Enterprise AI/ML** framework with tight integration of popular Python data science libraries, e.g., *Pandas*, *Scikit-Learn*, *Tensorflow*, *Pytorch*, *MLFlow*, etc. This project simplifies the process of integrating your company's Snowflake data with those popular libraries, making it easier to develop and deploy machine learning models.
 
 Installation
 ------
-Before getting started, ensure you have Poetry installed on your system. You can install Poetry by following the instructions [here](https://python-poetry.org/docs/).
 
-Next, clone this repository and navigate to the project directory:
+Before getting started, ensure you have *Poetry* installed on your system. You can install Poetry by following the instructions [here](https://python-poetry.org/docs/).
+
+Next, clone [*this*](https://github.com/tonyxliu/snowflake-ai.git) repository and navigate to the project directory (assume you are in bash terminal):
 
 ```bash
 git clone https://github.com/tonyxliu/snowflake-ai.git
@@ -16,33 +17,39 @@ cd snowflake-ai
 
 Then, use Poetry to install all dependencies:
 
-> poetry install
+```bash
+poetry install
+```
 
 Configuration
 -------
+
 Copy the sample configuration file and update the Snowflake connection parameters:
 
 ```bash
-cp snowflake-ai/conf/app_config.toml ~/snowflake-ai/conf/app_config
+mkdir -p ~/snowflake_ai/conf
+cp snowflake_ai/conf/app_config.toml ~/snowflake-ai/conf/
 ```
 
-Edit snowflake-ai/conf/app_config with your Snowflake connection details.
+Edit snowflake_ai/conf/app_config.toml with your Snowflake connection details.
 
 Usage
 ------
+
 To get started with Snowflake-AI, import SnowConnect and DataFrameFactory from the library:
 
 ```python
 from snowflake_ai.common import SnowConnect
 from snowflake_ai.common import DataFrameFactory
 ```
+
 Create a SnowConnect instance:
 
 ```python
 connect = SnowConnect()
 ```
 
-Specify the table you want to work with and create a DataFrame:
+Specify the table/view or sql you want to work with and create a DataFrame:
 
 ```python
 tbl_nm = 'SNOWFLAKE_SAMPLE_DATA.TPCH_SF1.CUSTOMER'
@@ -61,4 +68,5 @@ Enjoy building your next AI/ML project with Snowflake-AI!
 
 License
 ------
-This project is licensed under the BSD 3-Clause License - see the [LICENSE](https://github.com/tonyxliu/blob/master/snowflake-ai/LICENSE) file for details.
+
+This project is licensed under the BSD 3-Clause License - see the [LICENSE](https://github.com/tonyxliu/snowflake-ai/blob/master/LICENSE) file for details.
