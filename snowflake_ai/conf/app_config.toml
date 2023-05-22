@@ -1,62 +1,194 @@
-[data.connects]
-connect_0 = "snowflake-0"
+# all keys should be in lower case
+# use '_' to concat multi_words 
+
+[apps]
+  type = "streamlit_ml"
+  root_path = "/work/snowflake-ai/"
+
+  [apps.streamlit_default]
+  name = "AI Application Default Group"
+  version = "0.2.0"
+
+    [apps.streamlit_default.app_1]
+    type = "streamlit_ml"
+    name = "application_one"
+    version = "0.2.1"
+    environment = "dev"
+    app_dir = "apps/streamlit_default/app_1"
+    script_home_dir = "apps/streamlit_default/app_1" # streamlit ui home script directory
+
+    app_connects = ["oauth_connects.auth_code_default", "data_connects.snowflake_1"]
+
+    data_setups = ["group_0.setup_1"]
+
+    mlops_pipelines = [""]
 
 
-  [data.connect.snowflake-0]
-  auth_type = "keypair"
-  account = ""
-  region = ""
-  user = "tony.liu@yahoo.com"
-  password_env = "SNOWSQL_PWD" # x_env key is used for ref to env variable
+    [apps.group_1.app_1]
+    type = "ml_service"
+    name = "application one in group 1"
+    version = "0.2.0"
+    environment = "dev"
+
+
+
+[streamlit_apps]
+
+  [streamlit_apps.streamlit_default.app_1]
+
+    [streamlit_apps.streamlit_default.app_1.global]
+    dataFrameSerialization = "arrow"
+    level = "info"
+
+    [streamlit_apps.streamlit_default.app_1.server]
+    headless = true
+    port = 8501
+    enableCORS = false
+    enableStaticServing = true
+
+    [streamlit_apps.streamlit_default.app_1.theme]
+    primaryColor = "#1D8CCC"
+    backgroundColor = "#FFFFFF"
+    secondaryBackgroundColor = "#F0F2F6"
+    textColor = "#262730"
+    font = "sans serif"
+
+
+[app_connects]
+
+  [app_connects.oauth_connects]
+  init_list = ["auth_code_default"]
+
+    [app_connects.oauth_connects.auth_code_default]
+    auth_type = "oauth"
+    type = "auth_code"
+    content_type = "application/x-www-form-urlencoded"
+    auth_request_url = "https://login.microsoftonline.com/{tenant_id}/oauth2/v2.0/authorize"
+    tenant_id = ""
+    client_id = ""
+    redirect_uri = ""
+    scope = ""
+    auth_response_type = "code"
+    code_challenge_method = "S256"
+    auth_response_mode = "query" # form_post
+    auth_response_fields = ["code", "state"]
+    auth_response_errors = ["error", "error_description"]
+    grant_token_request_url = "https://login.microsoftonline.com/{tenant-id}/oauth2/v2.0/token"
+    grant_type = "authorization_code"
+    client_secret_env = "SNOWFLAKE_DEFAULT_APP_SECRET"
+    grant_token_response_fields = ["access_token", "token_type", "expires_in", "scope", "referesh_token", "id_token"]
+    verify_signature = false
+
+    [app_connects.oauth_connects.device_auth_0]
+    auth_type = "oauth"
+    type = "divice_auth_grant"
+    auth_request_url = "https://login.microsoftonline.com/{tenant_id}/oauth2/v2.0/devicecode"
+    tenant_id = ""
+    content_type = ""
+    client_id = ""
+    scope = ""
+    auth_response_fields = ["device_code", "user_code", "verification_uri", "message"]
+    grant_reguest_url = "https://login.microsoftonline.com/{tenant-id}/oauth2/v2.0/token"
+    grant_type = "urn:ietf:params:oauth:grant-type:device_code"
+
+    [app_connects.oauth_connects.client_creds_0]
+    auth_type = "oauth"
+    type = "auth_code"
+    content_type = "application/x-www-form-urlencoded"
+    auth_request_url = "https://login.microsoftonline.com/{tenant_id}/oauth2/v2.0/authorize"
+
+
+  [app_connects.data_connects]
+  init_list = ["snowflake_default"]
+
+    [app_connects.data_connects.snowflake_1]
+    type = "snowflake"
+    name = "snowflake oauth"
+    auth_type = "oauth"
+    account = ""
+    region = ""
+    user = "" 
+    database = ""  # optional
+    schema = ""  # optional
+    warehouse = ""  # optional
+    role = ""  # optional
+
+    [app_connects.data_connects.snowflake_default]
+    type = "snowflake"
+    name = "snowflake default"
+
+    auth_type = "keypair"
+    account = ""
+    region = ""
+    user = ""
+    password_env = "SNOWSQL_PWD"
+    role=""
+    warehouse = ""  # optional
+    database = ""  # optional
+    schema = ""  # optional
+    private_key_phrase_env = "SNOWFLAKE_USER_PRIVATE_KEY_PASSPHRASE"
+    private_key_path_env = "SNOWFLAKE_USER_PRIVATE_KEY_PATH"
+
+    [app_connects.data_connects.snowflake_2]
+    type = "snowflake"
+    name = "snowflake interactive"
+    auth_type = "externalbrowser"
+    account = ""
+    region = ""
+    user = ""
+    role = ""  # optional
+    warehouse = ""  # optional
+    database = ""  # optional
+    schema = ""  # optional
+
+    [app_connects.data_connects.file_0]
+    type = "file"
+    name = "default local csv"
+    format = "csv"
+    storage_type = "local" # azure_adls, azure_blob
+    dir_path = "../../"
+    file_name = ""
+
+
+
+[data_setups]
+
+  [data_setups.group_0]
+  data_connect = "snowflake_0"
   role = ""  # optional
   warehouse = ""  # optional
   database = ""  # optional
   schema = ""  # optional
-  private_key_phrase_env = "SNOWFLAKE_USER_PRIVATE_KEY_PASSPHRASE"
-  private_key_path_env = "SNOWFLAKE_USER_PRIVATE_KEY_PATH"
 
-
-    [data.connect.snowflake-0.flow_pipeline]
-    type = "prepect-mlflow" # prepect | airflow | kubeflow | prepect-mlflow
-
-
-    [data.connect.snowflake-0.data_setup]
-    stage_model_0 = ""
-
-
-    [data.connect.snowflake-0.data_prep]
-
-
-    [data.connect.snowflake-0.model_dev]
-
-
-    [data.connect.snowflake-0.model_serve]
-
-
-    [data.connect.snowflake-0.flow_test]
-    test_suite_path = "../tests"
-
-
-    [data.connect.snowflake-0.flow_ops]
-
-
-  [data.connect.file-0]
-  type = "local-csv" # prefix-storagetype
-  dir_path = "../../"
-  file_name = ""
+    [data_setups.group_0.setup_1]
+    type = "snowflake"
+    data_connect = "snowflake_0"
+    preprocess_script = ""
+    table = "table1"
+    query = "SELECT * FROM table1 WHERE ..."
 
 
 
-[data.apps]
-app_1 = "app-1"
+[model_devs]
+
+    [model_devs.feature_store.snowflake_default]
+    type = "snowflake"
+    connect = ""
+
+    [model_devs.model_registry.snowflake_default]
+    type = ""
 
 
-  [data.app.app-1]
-  type = "ml"
-  name = ""
-  data_connects = ["snowflake-0"]
 
+[mlops]
 
-    [data.app.app-1.snowflake-0]
+  [mlops.pipeline_default]
+  type = "prepect-mlflow" # prepect | airflow | kubeflow | prepect-mlflow
+  steps = ["ingestion", "preparation", "training", "validation", "testing", "evaluation",
+           "deployment", "monitoring", "retrain"]
 
+    [mlops.pipeline_default.ingestion]
+    script = "data_prep.py"
 
+    [mlops.group_default.preparation]
+    script = "data_prep.py"

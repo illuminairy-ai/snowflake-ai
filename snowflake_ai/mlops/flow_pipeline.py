@@ -1,7 +1,10 @@
-# Copyright (C) 2023 Tony Liu
+# Copyright (c) 2023, Tony Liu
 #
-# This software may be modified and distributed under the terms
-# of the BSD 3-Clause license. See the LICENSE file for details.
+# Licensed under the Apache License, Version 2.0 (the "License");
+# Use, reproduction and distribution of this software in source and 
+# binary forms, with or without modification, are permitted provided that
+# the License terms and conditions are met; you may not use this file
+# except in compliance with the License. See the LICENSE file for details.
 
 """
 This module contains Pipeline class for ML flow focusing on model
@@ -10,8 +13,8 @@ building, training, validation and testing in DEV domain.
 
 __author__ = "Tony Liu"
 __email__ = "tony.liu@yahoo.com"
-__license__ = "BSD 3-Clause"
-__version__ = "0.1.0"
+__license__ = "Apache License 2.0"
+__version__ = "0.2.0"
 
 
 import logging
@@ -41,7 +44,7 @@ class Pipeline:
     @classmethod
     def flow(cls, func):
         def wrapper(
-            obj
+            obj: Pipeline
         ):
             _logger = logging.getLogger(__name__)
             ctx = FlowContext()

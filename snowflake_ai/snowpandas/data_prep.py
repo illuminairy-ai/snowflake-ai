@@ -1,7 +1,10 @@
-# Copyright (C) 2023 Tony Liu
+# Copyright (c) 2023, Tony Liu
 #
-# This software may be modified and distributed under the terms
-# of the BSD 3-Clause license. See the LICENSE file for details.
+# Licensed under the Apache License, Version 2.0 (the "License");
+# Use, reproduction and distribution of this software in source and 
+# binary forms, with or without modification, are permitted provided that
+# the License terms and conditions are met; you may not use this file
+# except in compliance with the License. See the LICENSE file for details.
 
 """
 This module contains EDA and DataPrep class for general or pandas-like 
@@ -10,8 +13,8 @@ data exploration, splits, and preprocessing.
 
 __author__ = "Tony Liu"
 __email__ = "tony.liu@yahoo.com"
-__license__ = "BSD 3-Clause"
-__version__ = "0.1.0"
+__license__ = "Apache License 2.0"
+__version__ = "0.2.0"
 
 
 from typing import (
@@ -32,49 +35,33 @@ class EDA:
 
     To use this class, initialize it with DataSetup as follows:
 
-        from snowflake_ai.snowpandas import DataSetup
-
-        eda: EDA = EDA(setup)
+        >>> from snowflake_ai.snowpandas import DataSetup
+        ... 
+        >>> eda: EDA = EDA(setup)
         
     """    
-    DEFAULT_DF = "default"
+    T_DEFAULT_DF = "default"
 
 
     def __init__(
         self, 
         setup: DataSetup,
-        dfs: Optional[Union[DataFrame, Dict[str, DataFrame]]] = None
+        data: Optional[Dict[str, DataFrame]] = {}
     ):
-        self.__setup = setup
-        self.__df = DataFrame()
-        self.__data = {}
-        if dfs is not None and isinstance(dfs, DataFrame):
-            self.__df = dfs
-        elif dfs is not None and isinstance(dfs, Dict):
-            for key, value in dfs.items():
-                if not isinstance(key, str):
-                    raise TypeError(
-                        f"Dictionary keys must be strings, got {type(key)}"
-                    )
-                if not isinstance(value, DataFrame):
-                    raise TypeError(
-                        f"Dictionary values must be DataFrames, got {type(value)}"
-                    )
-            self.__data = dfs
-        
-
-    def get_setup(self):
-        return self.__setup
+        self._setup = setup
+        self._active_df = DataFrame()
+        self._data = data
 
 
-    def all_dfs(self) -> Dict[str, DataFrame]:
+    @property
+    def data_setup(self):
         """
-        Get all dataframes for exploration.
+        Get DataPrep's Setup.
 
         Returns:
-            Dict: dictionary of dataframes
+            DataSetup: data setup for the data preparation
         """
-        return self.__data
+        return self._setup
 
 
     def active_df(
@@ -94,41 +81,58 @@ class EDA:
         """
         if df_name is not None :
             try:
-                if df_name in self.__data.keys():
-                    self.__df = self.__data[df_name]
+                if df_name in self._data.keys():
+                    self._active_df = self._data[df_name]
             except:
                 raise ValueError(
                     f"Dictionary of DataFrame doesn't have the key: {df_name}"
                 )
             if df is not None:
-                self.__df = df
-                self.__data[df_name] = df
+                self._active_df = df
+                self._data[df_name] = df
         elif df is not None:
-            self.__df = df
-            self.__data[EDA.DEFAULT_DF] = df            
-        return self.__df
+            self._active_df = df
+            self._data[EDA.T_DEFAULT_DF] = df            
+        return self._active_df
 
 
     @staticmethod
-    def top_df(df: DataFrame):
+    def top_df(df: DataFrame, n: int = 10, by_col: str = None,
+        is_asc: bool = False
+    ):
         """
-        Return top 10 rows of input data frame
-        """        
-        return df.head(10)
+        Return top n rows from Pandas dataframe ordered by one column
 
-
-    def top(self, df_name: Optional[str] = None):
+        Args:
+            df (DataFrame): Pandas dataframe
+            n (int): top n rows
+            by_col (str): name of the column ordered by
+            is_asc (bool): True if it is ascending order; default False
+         
+        Returns:
+            Series or DataFrame: Pandas Series or Dataframe.
         """
-        Return top 10 rows of the data frame by name
-        """           
-        if df_name is None:
-            return self.__df.head(10)
-        elif df_name is not None and isinstance(self.__data, Dict):
-            return self.__data[df_name].head(10)
+        if by_col is None:
+            return df.head(n)
         else:
-            raise TypeError(
-                f"df_name or initialization of dataframe is required"
-            )
+            sorted_df = df.sort_values(by=by_col, ascending=is_asc)
+            return sorted_df.head(n)
+
+
+    def top(self, df_name: Optional[str] = None, n: int = 10, 
+        by_col: str = None, is_asc: bool = False
+    ):
+        """
+        Return top n rows from current active Pandas dataframe or input 
+        dataframe ordered by one column
+
+        Args:
+            df_name (str): dataframe name
+
+        Retruns:
+            Series or DataFrame: Pandas Series or DataFrame
+        """
+        return EDA.top_df(self.active_df(df_name), n, by_col, is_asc)    
 
 
     @staticmethod
@@ -160,35 +164,61 @@ class EDA:
 
 
     def desc(self, df_name: Optional[str] = None):
-        if df_name is None:
-            return self.__df.describe()
-        elif df_name is not None and isinstance(self.__data, Dict):
-            return self.__data[df_name].describe()
-        else:
-            raise TypeError(
-                f"df_name or initialization of dataframe is required"
-            )
+        """
+        Describe the dataframe by dataframe name.
 
+        Args:
+            df_name (str): dataframe name. if emptry, the current
+                active dataframe desc is called.
+         
+        Returns:
+            Series or DataFrame: Summary statistics of the Series or
+                Dataframe provided.
+        """
+        return EDA.desc(self.active_df(df_name))
+    
 
     @staticmethod
     def corr_df(df: DataFrame, label_name: str):
+        """
+        Compute correlation of columns against target label.
+
+        Args:
+            df (dataframe): input dataframe
+            label_name (str): target label name.
+         
+        Returns:
+            Correlation matrix.
+        """
         corr_mat = df.corr()
         return corr_mat[label_name].sort_values(ascending=False)
 
 
     def corr(self, label_name: str, feat_name: Optional[str] = None) \
             -> Union[float, Series, None]:
-        if label_name in self.__df.columns and feat_name is None:
-            corr_mat: DataFrame = self.__df.corr()
+        """
+        Compute correlation between target label and feature column.
+
+        Args:
+            label_name (str): target label.
+            feat_name (str): feature column.
+         
+        Returns:
+            Correlation matrix.
+        """
+        if label_name in self._active_df.columns and feat_name is None:
+            corr_mat: DataFrame = self._active_df.corr()
             return corr_mat[label_name].sort_values(ascending=False)
-        elif label_name in self.__df.colums and \
-                feat_name in self.__df.columns:
-            self.__df[feat_name] = to_numeric(
-                self.__df[feat_name], errors='coerce'
+        elif label_name in self._active_df.colums and \
+                feat_name in self._active_df.columns:
+            self._active_df[feat_name] = to_numeric(
+                self._active_df[feat_name], errors='coerce'
             )
-            self.__df[label_name] = to_numeric(
-                self.__df[label_name], errors='coerce')
-            return Series(self.__df[feat_name]).corr(Series(self.__df[label_name]))
+            self._active_df[label_name] = to_numeric(
+                self._active_df[label_name], errors='coerce')
+            return Series(self._active_df[feat_name]).corr(Series(
+                self._active_df[label_name])
+            )
         else:
             raise ValueError(
                 f"Check label name {label_name} or feature name {feat_name} "\
@@ -200,16 +230,20 @@ class EDA:
         self, feat_name, show_hist: bool = True, \
         label_name: Optional[str] = None
     ):
+        """
+        Show feature column's histgram and scatter plot if target label
+        is specified.
+
+        Args:
+            show_hist (bool): show histgram if true.
+            label_name (str): target label is supplied show scatter plot.
+        """        
         if show_hist:
-            self.__df[feat_name].hist()
+            self._active_df[feat_name].hist()
             plt.show()
         if label_name is not None:
-            plt.scatter(self.__data[feat_name], self.__data[label_name])
+            plt.scatter(self._data[feat_name], self._data[label_name])
             plt.show()
-
-
-    def explore(self):
-        pass
 
 
 
@@ -227,13 +261,10 @@ class DataPrep:
     def __init__(
         self, 
         setup: DataSetup,
-        dfs: Optional[Union[DataFrame, Dict[str, DataFrame]]] = None
+        data: Optional[Dict[str, DataFrame]] = {}
     ):
-        self.__setup = setup
-        if dfs is None:
-            self.__dfs = DataFrame()
-        else:
-            self.__dfs = dfs 
+        self._setup = setup
+        self._data = data 
 
 
     def process(self, *args) -> Iterable[DataFrame]:
@@ -242,9 +273,15 @@ class DataPrep:
         yield df
 
 
-    def end_partition(self) -> Iterable[Union[DataFrame, Dict[str, DataFrame]]]:
-        yield self.__dfs
+    def end_partition(self) -> Iterable[Dict[str, DataFrame]]:
+        yield self._data
 
 
     def get_setup(self) -> DataSetup:
-        return self.__setup
+        return self._setup
+
+
+    @property
+    def data_setup(self) -> DataSetup:
+        return self._setup
+    

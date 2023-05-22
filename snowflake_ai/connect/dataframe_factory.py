@@ -1,7 +1,10 @@
-# Copyright (C) 2023 Tony Liu
+# Copyright (c) 2023, Tony Liu
 #
-# This software may be modified and distributed under the terms
-# of the BSD 3-Clause license. See the LICENSE file for details.
+# Licensed under the Apache License, Version 2.0 (the "License");
+# Use, reproduction and distribution of this software in source and 
+# binary forms, with or without modification, are permitted provided that
+# the License terms and conditions are met; you may not use this file
+# except in compliance with the License. See the LICENSE file for details.
 
 """
 This module contains DataFrameFactory class to create Pandas'
@@ -10,8 +13,8 @@ DataFrame or Snowflake DataFrame depending on context.
 
 __author__ = "Tony Liu"
 __email__ = "tony.liu@yahoo.com"
-__license__ = "BSD 3-Clause"
-__version__ = "0.1.0"
+__license__ = "Apache License 2.0"
+__version__ = "0.2.0"
 
 
 import os
@@ -32,44 +35,47 @@ from snowflake.snowpark._internal.analyzer.snowflake_plan_node \
 from snowflake.snowpark import Session
 from snowflake.snowpark.types import StructType
 
-from snowflake_ai.common import DataConnect, SnowConnect, FileConnect
+from snowflake_ai.common import DataConnect
+from snowflake_ai.connect import SnowConnect, FileConnect
 
 
 
 class DataFrameFactory:
     """
-    This class provides uniform dataframe creation interface to create
+    This class provides an uniform dataframe creation interface to create
     a Pandas DataFrame or Snowflake DataFrame instance depending on the
     input context.
 
     To create a dataframe, construct an appropriate DataConnect object and
-    pass it together with data content to this factory class optionally with
-    corresponding schema.
+    pass it to this factory class together with the data content, optionally
+    supplied with the corresponding schema. Note, you can configure Datasets
+    to directly get snowflake or pandas dataframe without using this factory
+    class.
 
     Example 1:
-        from snowflake_ai.common import DataFrameFactory
-
-        # create snowflake dataframe with SnowConnect
-        sdf = DataFrameFactory.create_df(tbl_name, connect)
+        >>> from snowflake_ai.common import DataFrameFactory
+        ...
+        ... # create snowflake dataframe with SnowConnect
+        >>> sdf = DataFrameFactory.create_df(tbl_name, connect)
 
     Example 2:
-        # create snowflake dataframe with SnowConnect
-        sdf = DataFrameFactory.create_df('select col from tbl', connect)
+        ... # create snowflake dataframe with SnowConnect
+        >>> sdf = DataFrameFactory.create_df('select col from tbl', connect)
         
     Example 3:
-        # create pandas dataframe with FileConnect
-        df = DataFrameFactory.create_df(csv_name, connect)
+        ... # create pandas dataframe with FileConnect
+        >>> df = DataFrameFactory.create_df(csv_name, connect)
 
     Example 4:
-        # create pandas dataframe
-        df = DataFrameFactory.create_df([0, 1, 2], columns=['number'])
+        ... # create pandas dataframe
+        >>> df = DataFrameFactory.create_df([0, 1, 2], columns=['number'])
     """
 
     @classmethod
     def create_df(
         cls,
         data: Any, 
-        connect : Optional[DataConnect],
+        connect : Optional[Union[DataConnect, Session]] = None,
         columns: Optional[
             Union[StructType, Tuple, List[str], Axes, None] 
         ] = None,
@@ -83,7 +89,7 @@ class DataFrameFactory:
         Args:
             data (Any): input Snowflake table/view name, or sql statement,
                 or list, tuple, Pandas dataframe, or LogicalPath
-            session (Session): snowflake session
+            connect (DataConnect): SnowConnect or FileConnect object
             columns (StructType | List | Tuple | Axes): dataframe schema
             index (Axes) : pandas dataframe index
             dtype (Dtype) : pandas dataframe data type
@@ -91,22 +97,33 @@ class DataFrameFactory:
         Returns:
             DataFrame: Snowflake or Pandas Dataframe
         """
+        session = None
         if isinstance(connect, SnowConnect):
             session = connect.get_connection()
             col = columns
             if isinstance(columns, tuple) or isinstance(columns, np.ndarray):
                 col = list(columns)
             return cls.create_sdf(data, session, col)  # type: ignore
+        
         elif isinstance(connect, FileConnect):
             conn: FileConnect = connect
             if str(data).strip() == "":
-                return pd.read_csv(conn.connection)
+                return pd.read_csv(conn.current_connection)
             else:
                 f = os.path.join(
-                    os.path.dirname(os.path.abspath(str(conn.connection))), 
+                    os.path.dirname(
+                        os.path.abspath(str(conn.current_connection))
+                    ), 
                     str(data)
                 )
                 return pd.read_csv(f)
+        
+        elif isinstance(connect, Session):
+            col = columns
+            if isinstance(columns, tuple) or isinstance(columns, np.ndarray):
+                col = list(columns)
+            return cls.create_sdf(data, connect, col)  # type: ignore
+        
         else:
             return cls.create_pdf(data, columns, index, dtype) # type: ignore
 
@@ -135,10 +152,11 @@ class DataFrameFactory:
 
         if session is None and isinstance(data, SDF):
             return data.__copy__()
+        
         elif session is None and not isinstance(data, SDF):
             raise ValueError(
-                "Creation of Snowflake DataFrame requires "\
-                "Snowflake connection session"
+                "DataframeFactory: Creation of Snowflake DataFrame requires"\
+                " Snowflake connection session."
             )
 
         if session is not None and (
@@ -209,7 +227,7 @@ class DataFrameFactory:
         """
 
         logger = logging.getLogger(cls.__name__)
-        df = DF()
+        df = DF(data={}, columns=[])
         
         if isinstance(data, SDF):
             df = data.to_pandas()
@@ -226,7 +244,7 @@ class DataFrameFactory:
 
         else:
             logger.warn(
-                f"SnowDataFrame is initialized with empty Pandas Dataframe"
+                f"Initialization with empty Pandas Dataframe"
             )    
             
         return df
@@ -247,7 +265,7 @@ class DataFrameFactory:
             rdf = pd.DataFrame(data, index, columns, dtype, copy)
         except Exception as e:
             logger.exception(
-                "Exception occured in _create_df() when creating "\
-                f"local pandas dataframe: {e}"
+                "DataFrameFactory.create_df(): Exception occured when "\
+                f"creating local pandas dataframe - {e}"
             )
         return rdf

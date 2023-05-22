@@ -3,7 +3,7 @@
 Snowflake-AI
 =======
 
-*Snowflake_AI* is a Snowflake-centric **Enterprise AI/ML** framework with tight integration of popular Python data science libraries, e.g., *Pandas*, *Scikit-Learn*, *Tensorflow*, *Pytorch*, *MLFlow*, etc. This project simplifies the process of integrating your company's Snowflake data with those popular libraries, making it easier to develop and deploy machine learning models.
+*Snowflake_AI* is a Snowflake-centric **Enterprise AI/ML** framework with tight integration of popular Python data science libraries, e.g., *Pandas*, *Scikit-Learn*, *Tensorflow*, *Pytorch*, *MLFlow*, etc. This project simplifies the process of integrating your company's Snowflake data with those popular libraries, making it easier to develop and deploy machine learning models. Currently, this support OAuth and SAML SSO Snowflake Connection, Streamlit Apps development framework and initial Snowpandas.
 
 Installation
 ------
@@ -30,7 +30,7 @@ Copy the sample configuration file and update the Snowflake connection parameter
 
 ```bash
 mkdir -p ~/snowflake_ai/conf
-cp snowflake_ai/conf/app_config.toml ~/snowflake-ai/conf/
+cp snowflake_ai/conf/app_config.toml ~/snowflake_ai/conf/
 ```
 
 Edit snowflake_ai/conf/app_config.toml with your Snowflake connection details.

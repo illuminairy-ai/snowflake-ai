@@ -1,7 +1,10 @@
-# Copyright (C) 2023 Tony Liu
+# Copyright (c) 2023, Tony Liu
 #
-# This software may be modified and distributed under the terms
-# of the BSD 3-Clause license. See the LICENSE file for details.
+# Licensed under the Apache License, Version 2.0 (the "License");
+# Use, reproduction and distribution of this software in source and 
+# binary forms, with or without modification, are permitted provided that
+# the License terms and conditions are met; you may not use this file
+# except in compliance with the License. See the LICENSE file for details.
 
 """
 This module contains SnowSetup class specific for setting-up, 
@@ -10,12 +13,15 @@ initialization, configuration, and tearing-down of Snowflake environment
 
 __author__ = "Tony Liu"
 __email__ = "tony.liu@yahoo.com"
-__license__ = "BSD 3-Clause"
-__version__ = "0.1.0"
+__license__ = "Apache License 2.0"
+__version__ = "0.2.0"
 
 
-from typing import Optional
-from snowflake_ai.common import SnowConnect
+from typing import Optional, Dict, Optional
+from snowflake.snowpark import DataFrame as SDF
+
+from snowflake_ai.common import AppConfig
+from snowflake_ai.connect import SnowConnect
 from snowflake_ai.snowpandas import DataSetup
 
 
@@ -27,27 +33,35 @@ class SnowSetup(DataSetup):
 
     To use this class, instantiate SnowSetup with SnowConnect as follows:
 
-        from snowflake_ai.common import SnowConnect
-        from snowflake_ai.snowpandas import SnowSetup
-
-        conn: SnowConnect = SnowConnect()
-        setup: SnowSetup = SnowSetup(conn)
-        setup.create_stage()
+        >>> from snowflake_ai.common import SnowConnect
+        >>> from snowflake_ai.snowpandas import SnowSetup
+        ... 
+        >>> conn: SnowConnect = SnowConnect()
+        >>> setup: SnowSetup = SnowSetup(conn)
+        >>> setup.create_stage()
     """
+    def __init__(
+            self, datasetup_key: str, 
+            connect: SnowConnect,
+            data: Optional[Dict[str, SDF]] = {}
+    ) -> None:
+        super().__init__(
+            datasetup_key, 
+            connect, 
+            {key: sdf.to_pandas() for key, sdf in data.items()}
+        )
+        self._snow_dfs = data
 
-    def __init__(self, connect: SnowConnect) -> None:
-        super().__init__(connect)
 
-    
-    def get_connection(self) -> SnowConnect:
+    def get_connect(self) -> SnowConnect:
         """
         Get snowflake connection for the setup.
 
         Returns:
             SnowConnect: Snowflake data connection
         """
-        if isinstance(self.__connect, SnowConnect):
-            return self.__connect
+        if isinstance(self._connect, SnowConnect):
+            return self._connect
         else:
             raise TypeError(
                 "SnowSetup should be initialized with SnowConnect"
@@ -69,20 +83,7 @@ class SnowSetup(DataSetup):
         Returns:
             None: succesful creation of snowflake stage
         """
-        if (stage_name is None) or (not stage_name):
-            snow_conn = self.get_connection()
-            stage_keys = [
-                k for k in snow_conn.configs["data"]["connect"]\
-                    [snow_conn.curr_conn_name]["data_setup"].keys() \
-                    if str(k).lower().startswith("stage")
-            ]
-            for sk in stage_keys:
-                stage_name = snow_conn.configs["data"]["connect"]\
-                    [snow_conn.curr_conn_name]["data_setup"][sk]
-                ddl = f"CREATE STAGE IF NOT EXISTS {stage_name}"
-                self.get_connection().ddl(ddl)
-        else:
+        if (stage_name is not None) and (stage_name):
             ddl = f"CREATE STAGE IF NOT EXISTS {stage_name}"
-            self.get_connection().ddl(ddl)
+            self.get_connect().ddl(ddl)
         
-

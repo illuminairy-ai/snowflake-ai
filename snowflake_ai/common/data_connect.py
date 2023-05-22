@@ -1,7 +1,10 @@
-# Copyright (C) 2023 Tony Liu
+# Copyright (c) 2023, Tony Liu
 #
-# This software may be modified and distributed under the terms
-# of the BSD 3-Clause License. See the LICENSE file for details.
+# Licensed under the Apache License, Version 2.0 (the "License");
+# Use, reproduction and distribution of this software in source and 
+# binary forms, with or without modification, are permitted provided that
+# the License terms and conditions are met; you may not use this file
+# except in compliance with the License. See the LICENSE file for details.
 
 """
 This module contains DataConnect class representing a generic data
@@ -10,189 +13,152 @@ connection configuration.
 
 __author__ = "Tony Liu"
 __email__ = "tony.liu@yahoo.com"
-__license__ = "BSD 3-Clause"
-__version__ = "0.1.0"
+__license__ = "Apache License 2.0"
+__version__ = "0.2.0"
 
 
-import os
-from os.path import exists
-from pathlib import Path
-from typing import Optional, Union, Dict
+import sys
+from typing import Optional, Dict, Union
 import logging
-import toml
-from importlib.resources import read_text
+
+from snowflake.snowpark import Session
+from snowflake_ai.common import AppConfig, AppConnect
 
 
 
-class DataConnect:
+class DataConnect(AppConnect):
     """
-    This class represents a generic data connection configuration.
+    This class represents a generic data connection.
 
-    To use this class, extend it with a child class for specific data
-    connection, for example:
+    To use this class, create an instance from AppConfig or 
+    extend it in a child class for creation of a specific data
+    connection instance, e.g., SnowConnect as following :
 
-        from snowflake_ai.common import SnowConnect
-
-        connect: SnowConnect = SnowConnect()
-
-        # optionally load custom configurations
-        connect.load_config_file("./snowflake_ai/conf/")
+        >>> from snowflake_ai.connect import SnowConnect
+        ...
+        ... # using default snowflake config directly
+        >>> connect: SnowConnect = SnowConnect()
     """
 
-    DEFAULT_CONN = "snowflake-0"
-    DEFAULT_CONF_LIB_PATH = "snowflake_ai.conf"
-    DEFAULT_CONF_FILE = "app_config.toml"
-    DEFAULT_CONF_DIR = "./snowflake_ai/conf/"
+    K_DATA_CONN = "data_connects"
+    K_INIT_LIST = "init_list"
 
     _logger = logging.getLogger(__name__)
+    _logger.addHandler(logging.StreamHandler(sys.stdout))
+
+    _initialized = False
+
+    # {<connect_key>: file-connect-string|snowflake-connection-object}
+    _data_connections = {}
 
 
-    def __init__(
-        self,
-        config_dir : Optional[Union[str, None]] = None, 
-        config_file : Optional[Union[str, None]] = None
-    ):
+    def __init__(self, connect_key : Optional[str] = None):
+        super().__init__(connect_key)
         self.logger = DataConnect._logger
-        self.configs = {}
-        self.conn_params = {}
-        self.connections = {}
-        self.def_conn_name = DataConnect.DEFAULT_CONN
-        self.curr_conn_name = DataConnect.DEFAULT_CONN
-        self.load_config_file(config_dir, config_file)
+        self._current_connection = None
+        if (self.connect_key is not None) and self.connect_key:
+            if ((self.data_connections.get(self.connect_key) is None) \
+                    or (not self.is_current_active())) \
+                    and (not self.is_oauth_saml_type()):
+                self.data_connections[self.connect_key] = \
+                    self.create_connection(self.connect_params)
+                self.set_current_connection(
+                    self.data_connections[self.connect_key]
+                )
 
+        if (connect_key is None or not connect_key or \
+                self._current_connection is None) and self.data_connections:
+            k = DataConnect.search_default_key(self.data_connections)
+            self.connect_group, self.connect_key = \
+                AppConfig.split_group_key(k)
+            self.connect_key, self.connect_params = \
+                AppConnect.load_connect_config(k, self.configs)
+            self.app_connects[self.connect_key] = self
+            self.set_current_connection(self.data_connections[k])
 
-    def _load_default_config(self):
-        config_file = read_text(
-            DataConnect.DEFAULT_CONF_LIB_PATH, 
-            DataConnect.DEFAULT_CONF_FILE
-        )
-        self.configs = toml.loads(config_file)
-        self.logger.info(
-            f"Default app configuration loaded => {self.configs}"
-        )
-        return self.configs
+        if self.connect_params:
+            self.connect_type = self.connect_params.get(AppConfig.K_TYPE, '')
+            self.connect_name = self.connect_params.get(AppConfig.K_NAME, '')
+            
 
-
-    def load_config_file(
-        self, 
-        config_dir : Optional[Union[str, None]] = DEFAULT_CONF_DIR, 
-        config_file : Optional[Union[str, None]] = None
-    ) -> Dict:
+    @property
+    def data_connections(self) -> Dict:
         """
-        Load configuration file. the loading path of configuration file
-        has the following priority:
-            custom config directory and/or file, then user's home directory,
-            finally try to load configuration file as part of library 
-            loading path.
-
-        Args:
-            config_dir (str): Configuration file directory.
-            config_file (str): Configuration file name. if none or empty
-                merge all toml files
+        Get a dictionary of all data connections.
 
         Returns:
-            dict: loaded configuration as dictionary
+            dict: a dictionary of all data connections.
+        """   
+        return DataConnect._data_connections
 
-        Raises:
-            ValueError: If config file or path doesn't exist.
+
+    def get_current_connection(self) -> Union[str, Session]:
         """
-        if config_dir is None:
-            config_dir = DataConnect.DEFAULT_CONF_DIR
-        
-        config_path = os.path.abspath(os.path.dirname(config_dir))
-        if not exists(config_path):
-            home = Path.home()
-            config_path = os.path.join(
-                home, os.path.dirname(config_dir)
-            )
-        if not exists(config_path):
-            self.logger.info(
-                f"DataConnect.load_config_file() Config path {config_path} "\
-                f"doesn't exists, load from library config default"
-            )
-            return self._load_default_config() 
+        Get current data connection.
 
-        if (config_file is None) or (not config_file):
-            toml_files = [
-                f for f in os.listdir(config_path) \
-                    if f.lower().endswith(".toml")
-            ]
-            toml_files.sort(
-                key=lambda x: os.path.getmtime(os.path.join(config_path, x))
+        Returns:
+            str, Session: specific data connection object, e.g. file
+                path or Snowflake Session.
+        """
+        if not self.data_connections:
+            self.logger.warning(
+                "DataConnect.current_connection(): DataConnect."\
+                "_data_connections dictionary is empty!"
             )
-            for toml_file in toml_files:
-                file_path = os.path.join(config_path, toml_file)
-                with open(file_path, "r") as f:
-                    try:
-                        file_content = toml.load(f)
-                        self.configs.update(file_content)
-                    except Exception as e:
-                        self.logger.exception(
-                            "DataConnect.load_config_file(): Exception in "\
-                            f"loading config file {file_path}: {e}"
-                        )
-            self.logger.info(
-                f"Configurations loaded from all toml files in {config_path}"
+        elif (self._current_connection is None):
+            k = DataConnect.search_default_key(self.data_connections)
+            self.connect_group, self.connect_key = \
+                AppConfig.split_group_key(k)
+            self.connect_key, self.connect_params = \
+                AppConnect.load_connect_config(k, self.configs)
+            self.app_connects[self.connect_key] = self
+            self.set_current_connection(self.data_connections[k])
+
+        if ((not self.is_current_active()) or \
+                (self.data_connections.get(self.connect_key) is None)) \
+                and (not self.is_oauth_saml_type()):
+            self.data_connections[self.connect_key] = \
+                self.create_connection(self.connect_params)
+            self.set_current_connection(
+                self.data_connections[self.connect_key]
             )
-            return self.configs
-        
-        else:
-            config_path = os.path.abspath(
-                os.path.join(config_path, config_file)
-            )
-            if not exists(config_path):
-                config_path = os.path.join(
-                    config_path, 
-                    DataConnect.DEFAULT_CONF_FILE
-                )
-            if exists(config_path): 
-                with open(config_path, 'r') as f:
-                    try:
-                        self.configs = toml.load(f)
-                        self.logger.info(
-                            f"App configuration loaded from {config_path} "\
-                            f"=> {self.configs}"
-                        )
-                    except Exception as e:
-                        self.logger.exception(
-                            "DataConnect.load_config_file(): Exception in "\
-                            f"loading config file: {e}"
-                        )
-                        raise
-            else:
-                self.logger.info(
-                    f"Configuration toml files are loaded from {config_path}"
-                )
-        return self.configs
+        return self._current_connection
     
 
-    def connect(self):
+    def set_current_connection(self, conn: Union[str, Session]):
         """
-        Create all data connections specified in [data.connects] section
-        of configuration file, e.g., app_config.toml
+        Set current data connection.
+
+        Args:
+            conn (str | Session): input connection object
+        Returns:
+            str, Session: specific data connection object, e.g. file
+                path or Snowflake Session.
+        """
+        if conn is not None:
+            self._current_connection = conn
+        return self._current_connection
+
+
+    def is_current_active(self) -> bool:
+        """
+        Check whether current data connection is active or not. It should
+        be overwritten by specific subclass as it is implementation
+        dependant.
 
         Returns:
-            Dict: data connection object dictionary with connect name as keys
+            bool: True if it is active, otherwise False
         """
-        for _, value in self.configs["data"]["connects"].items():
-            params = dict(self.configs["data"]["connect"]).get(value)
-            if params is None:
-                self.logger.exception(
-                    f"DataConnect.Connect configuration error: {value} "\
-                    "cannot be referenced"
-                )
-                continue
-            else:
-                self.conn_params[value] = params
-                try:
-                    self.connections[value] = self.create_connection(params)
-                except Exception as e:
-                    self.logger.exception(
-                        "Exception occured in connect() when creating "\
-                        f"data connection: {e}"
-                    )
-        return self.connections
-
+        if self._current_connection is None:
+            return False
+        elif not self._data_connections:
+            return False
+        elif self.is_oauth_saml_type():
+            return False
+        elif self.connect_type == AppConnect.T_SNOWFLAKE_CONN:
+            return False
+        return True
+    
 
     def create_connection(self, params: Dict):
         """
@@ -201,11 +167,11 @@ class DataConnect:
         to override this method.
 
         Args:
-            params (Dict): Configuration dictionary as input parameters.
+            params (Dict): input parameters for connection creation.
 
         Returns:
             object: data connection object, e.g., connection session for
-                snowflake connection
+                snowflake connection.
         """
         conn = f"Connected to {params['host']}:{params['port']}"
         return conn
@@ -218,124 +184,99 @@ class DataConnect:
         Returns:
             int: 0 - successful; otherwise unsuccessful
         """
-        return 0
-    
+        rn = 0
+        try:
+            if self._current_connection is not None and \
+                    isinstance(self._current_connection, Session):
+                self._current_connection.close()
+        except Exception as e:
+            self.logger.error(f"DataConnect.close_connection(): Error {e}")
+            rn = -1
+        return rn
 
-    def get_connection(self, conn_name: Optional[str] = None):
+
+    def get_connection(self, connect_key: Optional[str] = None):
         """
-        Get lazy created data connection.
+        Get lazy created shared data connection or change existing data 
+        connection to use the input connect_key to initialize connection.
 
         Args:
             conn_name (str): data connect name.
 
         Returns:
             object: data connection object, e.g., session connection for
-                snowflake connection
+                snowflake connection; it can return None.
         """
-        conn = None
-        if (conn_name is None) or (not conn_name):
-            conn = self.connections.get(self.def_conn_name)
-            if conn is None:
-                ks = list(self.configs["data"]["connects"].keys())
-                if len(ks) == 0:
-                    conn_name = DataConnect.DEFAULT_CONN
-                    params = self.get_connect_config()
-                else: 
-                    ks.sort()
-                    conn_name = self.configs["data"]["connects"][ks[0]]
-                    params = self.get_connect_config(conn_name)
-                try:
-                    self.connections[conn_name] = self.create_connection(
-                        params
+        if connect_key is None:
+            if self._current_connection is None:
+                if self.data_connections:
+                    k = DataConnect.search_default_key(self.data_connections)
+                    self.connect_group, self.connect_key = \
+                        AppConfig.split_group_key(k)
+                    self.connect_key, self.connect_params = \
+                        AppConnect.load_connect_config(k, self.configs)
+                    self.app_connects[self.connect_key] = self
+                    self._current_connection = self.data_connections[k]
+                else:
+                    self.logger.warning(
+                        f"DataConnect.get_connection(): connections "\
+                        f"{len(self._data_connections)} initialized."
                     )
-                    conn = self.connections[conn_name]
-                    self.def_conn_name = conn_name
-                    self.curr_conn_name = conn_name
-                except Exception as e:
-                    self.logger.exception(
-                        "Exception occured in get_connection() when "\
-                        f"creating default data connection: {e}"
-                    )
-        else:
-            conn = self.connections.get(conn_name)
-            if conn is None:
-                params = self.get_connect_config(conn_name)
-                try:
-                    self.connections[conn_name] = self.create_connection(
-                        params
-                    )
-                    conn = self.connections[conn_name]
-                    self.curr_conn_name = conn_name
-                except Exception as e:
-                    self.logger.exception(
-                        "Exception occured in get_connection() when creating"\
-                        f" data connection: {e}"
-                    )
-        return conn
-
-
-    def get_connect_config(self, conn_name: Optional[str] = None) -> Dict:
-        """
-        Get specific data connection configuration.
-
-        Args:
-            conn_name (str): data connect name. if none, current connection 
-                name is used, if there is no current connection, default 
-                connection name is used.
-
-        Returns:
-            Dict: dictionary of configruation for specific connection
-        """
-        params = None
-        if (conn_name is None) or (not conn_name):
-            if self.curr_conn_name:
-                params = self.configs["data"]["connect"][self.curr_conn_name]
+                    return None
             else:
-                params = self.configs["data"]["connect"][
-                    DataConnect.DEFAULT_CONN
-                ]
-                conn_name = DataConnect.DEFAULT_CONN
+                return self._current_connection
         else:
-            params = self.conn_params.get(conn_name)
-            if params is None:
-                params = self.configs["data"]["connect"][conn_name]
-        self.conn_params[conn_name] = params
-        return params
+            qk = AppConfig.get_qualified_key(
+                AppConfig.K_APP_CONN, connect_key
+            )
+            if self.data_connections.get(qk) is None:
+                gk, k = AppConfig.split_group_key(qk)
+                params = self.configs[AppConfig.K_APP_CONN]\
+                    [DataConnect.K_DATA_CONN][k]
+                self.connect_key = qk
+                self.connect_params = params
+                self.connect_group = gk
+                if not self.is_oauth_saml_type():
+                    self.data_connections[qk] = self.create_connection(params)
+                    self._current_connection = self.data_connections[qk]
+
+            return self.data_connections.get(qk)
 
 
-    def get_current_connection(self):
+    def init_connects(self) -> int:
         """
-        Get current data connection. if there is no current connection name
-            default connection name is used.
-            
+        Initialize DataConnect in [app_connects.data_connects] init_list.
+
         Returns:
-            object: connection object, e.g., snowflake session for 
-                SnowConnect or file path for FileConnect
+            int: 0 - if there is no connect object has been initialized;
+                otherwise, return an integer to show the number of 
+                AppConnect objects have been initialized.
         """
-        conn = self.connections[self.curr_conn_name]
-        if conn is None:
-            conn = self.get_connection()
-            if conn is None:
-                conn_name = DataConnect.DEFAULT_CONN
-                params = self.get_connect_config(conn_name)
-                self.connections[conn_name] = self.create_connection(params)
-                conn = self.connections[conn_name]
-        return conn
-    
-
-    def set_current_connection(
-            self, 
-            conn_name: str,
-            data_conn = None
-    ) -> None:
-        """
-        Set current data connection.
-
-        Args:
-            conn_name (str): data connect name.
-            data_conn (object): session connection object for SnowConnect or
-                filepath for FileConnect
-        """
-        self.curr_conn_name = conn_name
-        if data_conn:
-            self.connections[conn_name] = data_conn
+        if not DataConnect._initialized:
+            conn_group_dict = AppConfig.filter_group_key(
+                DataConnect.K_DATA_CONN, 
+                AppConnect.K_APP_CONN, 
+                self.configs
+            )
+            lst = conn_group_dict.get(DataConnect.K_INIT_LIST)
+            if lst is not None and len(lst) > 0 :
+                for dconn in lst:
+                    dc: dict = self.configs[AppConnect.K_APP_CONN]\
+                        [DataConnect.K_DATA_CONN]
+                    params = dc.get(dconn)
+                    if params is None:
+                        raise ValueError(
+                            f"DataConnect.init_connets(): Error - [{dconn}]"\
+                            " doesn't exist in the configuration!"
+                        )
+                    elif not self.is_oauth_saml_type():
+                        c = self.create_connection(params)
+                        s = f"{DataConnect.K_DATA_CONN}.{dconn}"
+                        self.data_connections[s] = c
+                DataConnect._initialized = True
+        
+        n = len(self.data_connections)
+        self.logger.info(
+            f"DataConnect.init_connects(): {n} non-oauth data connects."
+        )
+        return n
