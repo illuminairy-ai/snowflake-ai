@@ -21,7 +21,7 @@ Example:
 __author__ = "Tony Liu"
 __email__ = "tony.liu@yahoo.com"
 __license__ = "Apache License 2.0"
-__version__ = "0.2.0"
+__version__ = "0.3.0"
 
 
 import os
@@ -46,16 +46,20 @@ class FileConnect(DataConnect):
         >>> connect: FileConnect = FileConnect()
     """
 
-    T_FILE_CONN = AppConfig.T_FILE_CONN
-    DEFAULT_FILE_CONN = "file_0"
-    DEFAULT_FILE_FMT = "csv"
-    DEFAULT_STRG_TYPE = "local"
+    T_FILE_CONN = AppConfig.T_CONN_FILE
+    DEF_FILE_CONN = "file_def"
+    DEF_FILE_FMT = "csv"
+    DEF_STRG_TYPE = "local"
 
     _logger = logging.getLogger(__name__)
 
 
-    def __init__(self, connect_key : Optional[str] = None):
-        super().__init__(connect_key)
+    def __init__(
+            self, 
+            connect_key : Optional[str] = None,
+            app_config: AppConfig = None
+        ):
+        super().__init__(connect_key, app_config)
         self.logger = FileConnect._logger
         if self.connect_group == DataConnect.K_DATA_CONN and \
                 self.connect_params:
@@ -73,7 +77,7 @@ class FileConnect(DataConnect):
                 "FileConnect initialization configuration error"
             )
         if (not self.connect_type) or (
-            self.connect_type != AppConfig.T_FILE_CONN
+            self.connect_type != AppConfig.T_CONN_FILE
         ):   
             raise ValueError(
                 "FileConnect initialization data connect type error"

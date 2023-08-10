@@ -14,7 +14,7 @@ initialization, configuration, and tearing-down of Snowflake environment
 __author__ = "Tony Liu"
 __email__ = "tony.liu@yahoo.com"
 __license__ = "Apache License 2.0"
-__version__ = "0.2.0"
+__version__ = "0.3.0"
 
 
 from typing import Optional, Dict, Optional
@@ -43,12 +43,14 @@ class SnowSetup(DataSetup):
     def __init__(
             self, datasetup_key: str, 
             connect: SnowConnect,
-            data: Optional[Dict[str, SDF]] = {}
+            data: Optional[Dict[str, SDF]] = {},
+            app_config: AppConfig = None
     ) -> None:
         super().__init__(
             datasetup_key, 
             connect, 
-            {key: sdf.to_pandas() for key, sdf in data.items()}
+            {key: sdf.to_pandas() for key, sdf in data.items()},
+            app_config
         )
         self._snow_dfs = data
 

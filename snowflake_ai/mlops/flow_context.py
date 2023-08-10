@@ -14,11 +14,13 @@ of MLOps flow
 __author__ = "Tony Liu"
 __email__ = "tony.liu@yahoo.com"
 __license__ = "Apache License 2.0"
-__version__ = "0.2.0"
+__version__ = "0.3.0"
 
 
 import logging
-
+from typing import Any, Callable, Dict, List, Optional, Tuple
+from snowflake.snowpark import DataFrame as SDF
+from snowflake.snowpark import Session
 
 
 class FlowContext:
@@ -37,10 +39,86 @@ class FlowContext:
         >>> ctx: FlowContext = FlowContext()
     """
 
+    FLG_DEF = 0
+
     def __init__(self) -> None:
         self.logger = logging.getLogger(__name__)
-        self.direct_input = {}
-        self.context_input = []
-        self.output = {}
+        self.session: Session = None
+        self.pipeline: Dict[str, Callable] = {}
+        self.data: Dict[str, Any] = {}
+        self.indexes: Dict[str, Any] = {}
+        self.models: Dict[str, Any] = {}
+        self.params: Dict[str, Any] = {}
+        self.step_types: List[str] = []
+        self.metrics: Dict[str, Any] = {}
+        self.loggings = {}
+        self.process_flag: int = FlowContext.FLG_DEF
         self.metadata = {}
+        self.direct_inputs = {}
+        self.context_inputs = []
+        self.outputs : Dict[str, Any] = {}
+        self.debug_info: Dict[str, Any] = {}
+        self.debug = True
 
+
+    @staticmethod
+    def exists_in_snowflake(
+            session: Session, 
+            db_nm: str,
+            sch_nm: str,
+            tbl_nm: str
+        ) -> bool:
+        s, db_name, sch_name = "", "", ""
+        if db_nm is not None and db_nm.strip():
+            db_name = db_nm.strip()        
+        if sch_nm is not None and sch_nm.strip():
+            sch_name = sch_nm.strip()
+        
+        if db_name:
+            s = f"""
+                SELECT COUNT(*) as CNT
+                FROM information_schema.tables
+                WHERE table_catalog = '{db_name}' and
+                table_schema = '{sch_nm}' and 
+                table_name = '{tbl_nm}'
+            """
+        elif sch_name:
+            s = f"""
+                SELECT COUNT(*) as CNT
+                FROM information_schema.tables
+                WHERE table_schema = '{sch_nm}' and 
+                table_name = '{tbl_nm}'
+            """
+        else:
+            s = f"""
+                SELECT COUNT(*) as CNT
+                FROM information_schema.tables
+                WHERE table_name = '{tbl_nm}'
+            """
+        t:SDF = session.sql(s)
+        n:int = t.collect()[0]["CNT"]
+        return False if n == 0 else True
+
+
+    def exist(self, table_name:str) -> bool:
+        """
+        Check whether a fully qualified table exist in Snowflake session.
+        Note: table_name would be converted all uppercase.
+        """
+        nl = table_name.rsplit('.', 2)
+        if self.session is None or len(nl) == 0:
+            return False
+        
+        if len(nl) == 1:
+            return self.exists_in_snowflake(
+                self.session, None, None, nl[0].upper()
+            )
+        elif len(nl) == 2:
+            return self.exists_in_snowflake(
+                self.session, None, nl[0].upper(), nl[1].upper()
+            )
+        else:
+            return self.exists_in_snowflake(
+                self.session, nl[0].upper(), 
+                nl[1].upper(), nl[2].upper()
+            )

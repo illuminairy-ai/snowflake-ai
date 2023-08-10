@@ -1,12 +1,22 @@
 # Changelog
 
+## 0.3.0
+
+*Release date*: 2023-08-08
+
+### Added
+
+* OAuth Support (Device Code Flow)
+* Initial MLOps support
+
+
 ## 0.2.0
 
 *Release date*: 2023-05-22
 
 ### Added
 
-* OAuth Support
+* OAuth Support (Auth Code Flow)
 * Streamlit Apps framework
 * Initial Snowpandas
 

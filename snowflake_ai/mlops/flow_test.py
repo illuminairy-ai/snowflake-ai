@@ -14,7 +14,7 @@ test/stage domain/environment
 __author__ = "Tony Liu"
 __email__ = "tony.liu@yahoo.com"
 __license__ = "Apache License 2.0"
-__version__ = "0.2.0"
+__version__ = "0.3.0"
 
 
 from snowflake_ai.mlops import Pipeline
@@ -32,27 +32,27 @@ class FlowTest(Pipeline):
 
     @Pipeline.flow
     def task_1(self):
-        self.flow_context.direct_input = {"a": 1}
+        self.flow_context.direct_inputs = {"a": 1}
         return self
     
 
     @Pipeline.flow
     def task_2(self):
-        self.flow_context.direct_input = {"a": 2}
+        self.flow_context.direct_inputs = {"a": 2}
         return self
     
 
     @Pipeline.flow
     def task_3(self):
         ctx = self.flow_context
-        ns = [x["a"] for x in ctx.context_input if "a" in x]
+        ns = [x["a"] for x in ctx.context_inputs if "a" in x]
         ctx.output = {"sum" : sum(ns)}
         return self
     
 
     def test_main(self):
         self.task_1().task_2().task_3()
-        assert self.flow_context.output["sum"] == 3
+        assert self.flow_context.outputs["sum"] == 3
     
 
 if __name__ == '__main__':

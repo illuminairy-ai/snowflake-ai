@@ -14,14 +14,15 @@ connection configuration.
 __author__ = "Tony Liu"
 __email__ = "tony.liu@yahoo.com"
 __license__ = "Apache License 2.0"
-__version__ = "0.2.0"
+__version__ = "0.3.0"
 
 
 import sys
-from typing import Optional, Dict, Tuple, List
+from typing import Optional, Dict, Tuple, List, Union
 import logging
 import jwt
 
+from snowflake_ai.common import ConfigKey, ConfigType
 from snowflake_ai.common import AppConfig, AppConnect
 
 
@@ -42,19 +43,25 @@ class OAuthConnect(AppConnect):
         >>> connect.grant_request()
     """
 
-    K_OAUTH_CONN = "oauth_connects"
-    K_INIT_LIST = "init_list"
+    K_OAUTH_CONN = ConfigType.OAuthConnects.value
+    K_INIT_LIST = ConfigKey.INIT_LIST.value
     K_CLIENT_SECRET = "client_secret_env"
 
     _logger = logging.getLogger(__name__)
     _logger.addHandler(logging.StreamHandler(sys.stdout))
 
     _initialized = False
+
+    # oauth_connects.<connect_name> : configs dict
     _init_connect_params = {}
 
 
-    def __init__(self, connect_key : Optional[str] = None):
-        super().__init__(connect_key)
+    def __init__(
+            self, 
+            connect_key : Optional[str] = None,
+            app_config: AppConfig = None
+        ):
+        super().__init__(connect_key, app_config)
         self.logger = OAuthConnect._logger
 
         self.oauth_connect_key = None
@@ -65,22 +72,34 @@ class OAuthConnect(AppConnect):
             )
             self.setup_connect(self.connect_params)
 
+        # setup default oauth connect
         if (connect_key is None) or (not connect_key):
-            oauth_configs = self.configs[AppConfig.K_APP_CONN]\
-                [OAuthConnect.K_OAUTH_CONN]
+            d_configs : Dict = None
+            oauth_configs: Dict = None
+            if self.app_config is None:
+                d_configs = self._configs.get(ConfigType.AppConnects.value)
+                if d_configs is not None:
+                    oauth_configs = d_configs.get(OAuthConnect.K_OAUTH_CONN)
+            else:
+                oauth_configs = self.app_config.oauth_connect_configs
             k = AppConnect.search_default_key(oauth_configs)
             self.oauth_connect_key = k
-            icps: Dict = self.init_connect_params.get(k)
+            icps: Dict = self._init_connect_params.get(k)
             if icps is None:
-                self.connect_params = self.configs[AppConfig.K_APP_CONN]\
-                    [OAuthConnect.K_OAUTH_CONN][k]
+                self.connect_params = self._configs\
+                        [ConfigType.AppConnects.value]\
+                        [OAuthConnect.K_OAUTH_CONN][k]
             else:
                 self.connect_params = icps
-                self.connect_type = icps.get(AppConfig.K_TYPE, '')
-                self.connect_name = icps.get(AppConfig.K_NAME, '')
-                self.connect_group = OAuthConnect.K_OAUTH_CONN
-                self.connect_key = f"{OAuthConnect.K_OAUTH_CONN}.{k}"
+                
+            self.connect_type = self.connect_params.get(
+                    ConfigKey.TYPE.value, '')
+            self.connect_name = self.connect_params.get(
+                    ConfigKey.NAME.value, '')
+            self.connect_group = OAuthConnect.K_OAUTH_CONN
+            self.connect_key = f"{OAuthConnect.K_OAUTH_CONN}.{k}"
             self.setup_connect(self.connect_params)
+
 
 
     @property
@@ -94,13 +113,17 @@ class OAuthConnect(AppConnect):
         return OAuthConnect._init_connect_params
     
 
-    def authorize_request(self, add_params: Dict) -> str:
+    def prepare_authorize_request(self, add_params: Dict = {}) -> Dict:
+        pass
+
+
+    def authorize_request(self, add_params: Dict = {}) -> Union[str, Dict]:
         """
-        Make an authorization request. This method should be overwritten by
-            its child class.
+        Construct an authorization request url. This method should be 
+        overwritten by its child class.
 
         Args:
-            add_params (Dict): additional parameters may required for 
+            add_params (Dict): additional parameters may be required for 
                 authorization request.
 
         Returns:
@@ -109,11 +132,25 @@ class OAuthConnect(AppConnect):
         return ""
     
 
-    def prepare_grant_request(self) -> Dict:
+    def process_authorize_response(self, json_ctx: Dict) -> Dict:
+        """
+        Construct an authorization request url. This method should be 
+        overwritten by its child class.
+
+        Args:
+            json_ctx (Dict): json context in form of dictionary
+
+        Returns:
+            Dict: updated json context
+        """
+        return {}
+
+
+    def prepare_grant_request(self, add_params: Dict = {}) -> Dict:
         pass
 
 
-    def grant_request(self, add_params: Dict) -> Dict:
+    def grant_request(self, add_params: Dict = {}) -> Dict:
         """
         Make grant request to get access token. This method should be
         overwritten by its child class.
@@ -125,8 +162,12 @@ class OAuthConnect(AppConnect):
         Returns:
             dict: a dictionary of grant token response results.
         """   
-        return {}
+        return add_params
     
+
+    def process_grant_response(self, json_ctx: Dict = {}) -> Dict:
+        pass
+
 
     def generate_pkce_pair(self) -> Tuple[str, str]:
         """
@@ -168,22 +209,28 @@ class OAuthConnect(AppConnect):
         """
         rt = {}
         for tok_t in token_types:
-            print(f"DEBUG O1 => token:1 {tok_t}")
+            self.logger.debug(
+                f"OauthConnect.decode_token(): Token type [{tok_t}]"
+            )
             token = token_result.get(tok_t)
             if not token:
                 self.logger.error(
                     "OAuthConnect.decode_token(): No token is found"\
-                    "in the provided response result."
+                    "in the provided response result!"
                 )
             elif self.is_jwt(token):
-                print(f"DEBUG O2 => is token jwt? {token}")
+                self.logger.debug(
+                    f"OauthConnect.decode_token(): JWT token [{token}]"
+                )
                 dtok = jwt.decode(token, options={
                     "verify_signature": self.verify_signature}
                 )
                 rt[tok_t] = token
                 rt[f"decoded_{tok_t}"] = dtok
             else:
-                print(f"DEBUG O1 => token:2 {token}")
+                self.logger.debug(
+                    f"OauthConnect.decode_token(): Not JWT token [{token}]"
+                )
                 rt[tok_t] = token
 
         return rt
@@ -219,11 +266,12 @@ class OAuthConnect(AppConnect):
         Returns:
             OAuthConnect: self with proper parameters initialized
         """
-        self.connect_type = params.get(AppConfig.K_TYPE, "auth_code")
+        self.connect_type = params.get(
+                ConfigKey.TYPE.value, AppConfig.T_OAUTH_CODE)
         self.content_type = params.get(
-            "content_type", 
-            "application/x-www-form-urlencoded"
-        )
+                "content_type", 
+                "application/x-www-form-urlencoded"
+            )
         self.auth_request_url = params.get("auth_request_url", '')
         self.auth_response_fields = params.get("auth_response_fields", [])
         self.auth_response_type = params.get("auth_response_type")
@@ -231,26 +279,26 @@ class OAuthConnect(AppConnect):
         self.client_id = params.get("client_id", '')
         self.scope = params.get("scope", '')
         self.auth_response_errors = params.get(
-            "auth_response_errors", 
-            ["error", "error_description"]
-        )
+                "auth_response_errors", 
+                ["error", "error_description"]
+            )
         self.grant_token_request_url = params.get(
-            "grant_token_request_url", ''
-        )
+                "grant_token_request_url", ''
+            )
         self.grant_type = params.get("grant_type", "authorization_code")
         self.grant_token_response_fields = params.get(
-            "grant_token_response_fields", ["access_token"]
-        )
+                "grant_token_response_fields", ["access_token"]
+            )
         self.client_secret_env = params.get(
-            self.K_CLIENT_SECRET, "SNOWFLAKE_DEFAULT_APP_SECRET"
-        )
+                self.K_CLIENT_SECRET, "SNOWFLAKE_DEFAULT_APP_SECRET"
+            )
         self.verify_signature = params.get("verify_signature", False)
         return self
 
 
     def init_connects(self) -> int:
         """
-        Initialize a list of OAuthConnect configuration parameters.
+        Initialize a list of OAuthConnect configuration parameter configs.
 
         Returns:
             int: 0 - if it hasn't been initialized; other integer means 
@@ -260,14 +308,14 @@ class OAuthConnect(AppConnect):
             conn_group_dict = AppConfig.filter_group_key(
                 OAuthConnect.K_OAUTH_CONN, 
                 AppConnect.K_APP_CONN,
-                self.configs
+                self._configs
             )
             lst = conn_group_dict.get(OAuthConnect.K_INIT_LIST)
             if lst is not None and len(lst) > 0 :
                 for oconn in lst:
-                    dc: dict = self.configs[AppConnect.K_APP_CONN]\
+                    dc: Dict = self._configs[AppConnect.K_APP_CONN]\
                         [OAuthConnect.K_OAUTH_CONN]
-                    params = dc.get(oconn)
+                    params: Dict = dc.get(oconn)
                     if params is None:
                         raise ValueError(
                             "OAuthConnect.init_connets(): Error - ["\
@@ -275,8 +323,9 @@ class OAuthConnect(AppConnect):
                         )
                     else:
                         self.init_connect_params[oconn] = params
-                self.logger.info(
-                    f"OAuth_connect.init_connects(): {self.init_connect_params}"
+                self.logger.debug(
+                    f"OAuth_connect.init_connects(): Initialized - "\
+                    f"{self.init_connect_params}"
                 )
                 OAuthConnect._initialized = True
         

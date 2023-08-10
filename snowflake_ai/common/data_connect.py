@@ -14,7 +14,7 @@ connection configuration.
 __author__ = "Tony Liu"
 __email__ = "tony.liu@yahoo.com"
 __license__ = "Apache License 2.0"
-__version__ = "0.2.0"
+__version__ = "0.3.0"
 
 
 import sys
@@ -22,6 +22,7 @@ from typing import Optional, Dict, Union
 import logging
 
 from snowflake.snowpark import Session
+from snowflake_ai.common import ConfigType, ConfigKey
 from snowflake_ai.common import AppConfig, AppConnect
 
 
@@ -30,7 +31,8 @@ class DataConnect(AppConnect):
     """
     This class represents a generic data connection.
 
-    To use this class, create an instance from AppConfig or 
+    Typically, you don't use this class to create data connection
+    directly, rather create an instance from AppConfig or 
     extend it in a child class for creation of a specific data
     connection instance, e.g., SnowConnect as following :
 
@@ -40,22 +42,28 @@ class DataConnect(AppConnect):
         >>> connect: SnowConnect = SnowConnect()
     """
 
-    K_DATA_CONN = "data_connects"
-    K_INIT_LIST = "init_list"
+    K_DATA_CONN = ConfigType.DataConnects.value
+    K_INIT_LIST = ConfigKey.INIT_LIST.value
 
     _logger = logging.getLogger(__name__)
     _logger.addHandler(logging.StreamHandler(sys.stdout))
 
     _initialized = False
 
-    # {<connect_key>: file-connect-string|snowflake-connection-object}
+    # {<connect_key>: file-connect-string|snowflake-connection-obj}
     _data_connections = {}
 
 
-    def __init__(self, connect_key : Optional[str] = None):
-        super().__init__(connect_key)
+    def __init__(
+            self, 
+            connect_key : Optional[str] = None,
+            app_config: AppConfig = None
+        ):
+        super().__init__(connect_key, app_config)
         self.logger = DataConnect._logger
         self._current_connection = None
+
+        # create data service connection and store at DataConnect class
         if (self.connect_key is not None) and self.connect_key:
             if ((self.data_connections.get(self.connect_key) is None) \
                     or (not self.is_current_active())) \
@@ -66,20 +74,63 @@ class DataConnect(AppConnect):
                     self.data_connections[self.connect_key]
                 )
 
+        # load default data service connection
         if (connect_key is None or not connect_key or \
                 self._current_connection is None) and self.data_connections:
             k = DataConnect.search_default_key(self.data_connections)
             self.connect_group, self.connect_key = \
                 AppConfig.split_group_key(k)
             self.connect_key, self.connect_params = \
-                AppConnect.load_connect_config(k, self.configs)
+                AppConnect.load_connect_config(k, self._configs)
             self.app_connects[self.connect_key] = self
             self.set_current_connection(self.data_connections[k])
+            connect_key = self.connect_key
 
+        # load user based connection
+        if not connect_key:
+            self.logger.error(f"DataConnect.init(): Error - missing key"\
+                    f" [{connect_key}]; Connect_key[{self.connect_key}]")
+        elif not self.connect_key:
+            self.connect_key = connect_key
+            self.connect_group, self.connect_name = \
+                AppConfig.split_group_key(connect_key)
+        self.logger.debug(f"DataConnect.init(): Connect_group"\
+                f"[{self.connect_group}]; Connect_key[{self.connect_key}]"\
+                f"; Connect_name[{self.connect_name}]")
+
+        # setup oauth reference
         if self.connect_params:
-            self.connect_type = self.connect_params.get(AppConfig.K_TYPE, '')
-            self.connect_name = self.connect_params.get(AppConfig.K_NAME, '')
+            self.connect_type = self.connect_params.get(
+                    ConfigKey.TYPE.value, '')
+            self.connect_name = self.connect_params.get(
+                    ConfigKey.NAME.value, '')
+            self.oauth_connect_ref = self.connect_params.get(
+                    ConfigKey.CONN_OAUTH.value)
+            if self.oauth_connect_ref is not None and \
+                    self.oauth_connect_ref:
+                self.auth_type = AppConfig.T_OAUTH
+            else:
+                self.oauth_connect_ref = ""
             
+            if self.oauth_connect_ref:
+                _, self.oauth_connect_config = \
+                        AppConfig.get_group_item_config(
+                                self.oauth_connect_ref, 
+                                ConfigType.AppConnects.value,
+                                self._configs)
+            else:
+                self.oauth_connect_config = {}
+            self.logger.debug(f"DataConnect.init(): Snowflake OAuth Referenced"\
+                    f" Configuration => {self.oauth_connect_config}")
+
+            # match oauth connect connect_type
+            if self.oauth_connect_config:
+                self.oauth_flow_type = self.oauth_connect_config.get(
+                        ConfigKey.TYPE.value, "")
+            else:
+                self.oauth_flow_type = ""
+            
+
 
     @property
     def data_connections(self) -> Dict:
@@ -110,7 +161,7 @@ class DataConnect(AppConnect):
             self.connect_group, self.connect_key = \
                 AppConfig.split_group_key(k)
             self.connect_key, self.connect_params = \
-                AppConnect.load_connect_config(k, self.configs)
+                AppConnect.load_connect_config(k, self._configs)
             self.app_connects[self.connect_key] = self
             self.set_current_connection(self.data_connections[k])
 
@@ -197,11 +248,14 @@ class DataConnect(AppConnect):
 
     def get_connection(self, connect_key: Optional[str] = None):
         """
-        Get lazy created shared data connection or change existing data 
-        connection to use the input connect_key to initialize connection.
+        Get lazy created shared data service connection or change 
+        existing data connection to use the input connect_key to initialize
+        connection. This should not be used for user specific data
+        connection.
 
         Args:
-            conn_name (str): data connect name.
+            connect_key (str): data connect key in form of 
+                "data_connects".<connect_name>
 
         Returns:
             object: data connection object, e.g., session connection for
@@ -214,24 +268,31 @@ class DataConnect(AppConnect):
                     self.connect_group, self.connect_key = \
                         AppConfig.split_group_key(k)
                     self.connect_key, self.connect_params = \
-                        AppConnect.load_connect_config(k, self.configs)
+                        AppConnect.load_connect_config(k, self._configs)
                     self.app_connects[self.connect_key] = self
                     self._current_connection = self.data_connections[k]
+                    self.logger.debug(
+                        f"DataConnect.get_connection(): Connect_group ["\
+                        f"{self.connect_group}]; Connect_key "\
+                        f"[{self.connect_key}]; Current_connect_key [{k}]; "\
+                        f"Current_connection [{self._current_connection}]."
+                    )
                 else:
                     self.logger.warning(
-                        f"DataConnect.get_connection(): connections "\
-                        f"{len(self._data_connections)} initialized."
+                        f"DataConnect.get_connection(): Warning - "\
+                        f"[{len(self._data_connections)}] " \
+                        "connection initialized!"
                     )
                     return None
             else:
                 return self._current_connection
         else:
             qk = AppConfig.get_qualified_key(
-                AppConfig.K_APP_CONN, connect_key
+                ConfigType.AppConnects.value, connect_key
             )
             if self.data_connections.get(qk) is None:
                 gk, k = AppConfig.split_group_key(qk)
-                params = self.configs[AppConfig.K_APP_CONN]\
+                params = self._configs[ConfigType.AppConnects.value]\
                     [DataConnect.K_DATA_CONN][k]
                 self.connect_key = qk
                 self.connect_params = params
@@ -256,12 +317,12 @@ class DataConnect(AppConnect):
             conn_group_dict = AppConfig.filter_group_key(
                 DataConnect.K_DATA_CONN, 
                 AppConnect.K_APP_CONN, 
-                self.configs
+                self._configs
             )
             lst = conn_group_dict.get(DataConnect.K_INIT_LIST)
             if lst is not None and len(lst) > 0 :
                 for dconn in lst:
-                    dc: dict = self.configs[AppConnect.K_APP_CONN]\
+                    dc: dict = self._configs[AppConnect.K_APP_CONN]\
                         [DataConnect.K_DATA_CONN]
                     params = dc.get(dconn)
                     if params is None:
@@ -276,7 +337,8 @@ class DataConnect(AppConnect):
                 DataConnect._initialized = True
         
         n = len(self.data_connections)
-        self.logger.info(
-            f"DataConnect.init_connects(): {n} non-oauth data connects."
+        self.logger.debug(
+            f"DataConnect.init_connects(): [{n}] shared (non-oauth) "\
+            f"data service connects have been established."
         )
         return n

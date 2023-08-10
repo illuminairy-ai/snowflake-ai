@@ -14,7 +14,7 @@ DataFrame or Snowflake DataFrame depending on context.
 __author__ = "Tony Liu"
 __email__ = "tony.liu@yahoo.com"
 __license__ = "Apache License 2.0"
-__version__ = "0.2.0"
+__version__ = "0.3.0"
 
 
 import os
@@ -155,8 +155,8 @@ class DataFrameFactory:
         
         elif session is None and not isinstance(data, SDF):
             raise ValueError(
-                "DataframeFactory: Creation of Snowflake DataFrame requires"\
-                " Snowflake connection session."
+                "DataframeFactory.create_sdf(): Creation of Snowflake "\
+                "DataFrame requires Snowflake connection session!"
             )
 
         if session is not None and (
@@ -169,9 +169,9 @@ class DataFrameFactory:
                 return session.create_dataframe(data, columns)
             else:
                 raise ValueError(
-                    "Creation of Snowflake DataFrame requires "\
-                    "related schema or Pandas"
-            )
+                    "DataframeFactory.create_sdf(): Creation of Snowflake "\
+                    "DataFrame requires related schema or Pandas schema!"
+                )
         
         elif session is not None and isinstance(data, str):
             q = data.strip().split()
@@ -191,14 +191,14 @@ class DataFrameFactory:
                 return session.create_dataframe(DF(data), columns)
             else:
                 raise ValueError(
-                    "Creation of Snowflake DataFrame requires "\
-                    "related schema or Pandas"
+                    "DataframeFactory.create_sdf(): Creation of Snowflake "\
+                    "DataFrame failed using Dict data or Pandas Series!"
                 )
             
         else:
             raise ValueError(
-                "Creation of Snowflake DataFrame failed with "\
-                "unexpected input parameters"
+                "DataframeFactory.create_sdf(): Creation of Snowflake "\
+                "DataFrame failed, please check input value and type!"
             )
     
 
@@ -244,7 +244,8 @@ class DataFrameFactory:
 
         else:
             logger.warn(
-                f"Initialization with empty Pandas Dataframe"
+                f"DataframeFactory.create_pdf(): Initialization with empty "\
+                f"Pandas Dataframe."
             )    
             
         return df
@@ -265,7 +266,7 @@ class DataFrameFactory:
             rdf = pd.DataFrame(data, index, columns, dtype, copy)
         except Exception as e:
             logger.exception(
-                "DataFrameFactory.create_df(): Exception occured when "\
-                f"creating local pandas dataframe - {e}"
+                "DataFrameFactory._create_df(): Exception occured when "\
+                f"creating local pandas dataframe - {e}!"
             )
         return rdf

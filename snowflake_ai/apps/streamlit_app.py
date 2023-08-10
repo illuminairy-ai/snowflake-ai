@@ -13,7 +13,7 @@ This module contains StreamlitApp class representing an application
 __author__ = "Tony Liu"
 __email__ = "tony.liu@yahoo.com"
 __license__ = "Apache License 2.0"
-__version__ = "0.2.0"
+__version__ = "0.3.0"
 
 
 import os
@@ -24,15 +24,19 @@ import logging
 import toml
 from functools import wraps
 import streamlit as st
+from types import ModuleType
+from snowflake.snowpark import Session
 
-from snowflake_ai.common import AppConfig
-from snowflake_ai.apps import AppPage
+from snowflake_ai.common import AppConfig, AppType, ConfigType
+from snowflake_ai.apps import AppPage, BaseApp
 from snowflake_ai.common import OAuthConnect
-from snowflake_ai.connect import AuthCodeConnect, ConnectManager
+from snowflake_ai.connect import AuthCodeConnect, ConnectManager,\
+        SnowConnect
+from snowflake_ai.snowpandas import SetupManager, DataSetup
 
 
 
-class StreamlitApp(AppConfig):
+class StreamlitApp(BaseApp):
     """
     This class represents a Steamlit application's configurations and 
     its corresponding application. Since it is subclass of AppConfig,
@@ -62,7 +66,7 @@ class StreamlitApp(AppConfig):
 
     K_PAGE = "page"
     K_PRE_PAGE = "previous_page"
-    T_ST_APP = "streamlit"
+    T_ST_APP = AppType.Streamlit.value
 
 
     def __init__(
@@ -83,13 +87,18 @@ class StreamlitApp(AppConfig):
         """
         super().__init__(app_key, config_dir, config_file)
         self.logger = AppConfig._logger
-        if StreamlitApp.T_ST_APP not in self.type:
+        if StreamlitApp.T_ST_APP != self.type:
             raise TypeError(
                 "StreamlitApp.init(): Application type configuration Error."
             )
         self._setup_streamlit_config()
         self.pages : Dict[str, AppPage] = {}
         self.is_logged_in = False
+        self.snow_connect = ConnectManager.create_default_snow_connect(self)
+        self.default_setup = SetupManager.create_default_snow_setup(
+            self, self.snow_connect
+        )
+        self.default_setup.load_module()
 
 
     def _setup_streamlit_config(
@@ -107,15 +116,15 @@ class StreamlitApp(AppConfig):
         Retrun:
             str: streamlit configuration file path
         """
-        app_dir = os.path.join(self.root_path, self.script_home_dir)
+        app_dir = os.path.join(self.root_path, self.script_home)
         p = os.path.join(app_dir, ".streamlit/")
         if not exists(p):
             try:
                 os.makedirs(p, exist_ok=True)
             except Exception as e:
                 raise ValueError(
-                    f"Streamlit._setup_streamlit_dir(): Error - {e}. "\
-                    "Cannot create streamlit configuration directory"
+                    f"Streamlit._setup_streamlit_dir(): Error [{e}] - "\
+                    "Cannot create streamlit configuration directory!"
                 )
 
         if conf_file is None:
@@ -152,11 +161,11 @@ class StreamlitApp(AppConfig):
         # split app_key in form of group_key.app_key into two variables
         gk, k = AppConfig.split_group_key(self.app_key)
         config: Dict[str, Dict] = self.get_all_configs().get(
-            AppConfig.K_ST_APPS, {}
+            ConfigType.Streamlits.value, {}
         )
-        self.logger.info(
-            f"StreamlitApp.get_streamlit_config(): group_key =>{gk}; app_"\
-            f"key => {k}; config => {config}"
+        self.logger.debug(
+            f"StreamlitApp.get_streamlit_config(): Group_key [{gk}]; App_"\
+            f"key [{k}]; Config [{config}]."
         )
         if config:
             config = config.get(gk, {})
@@ -273,18 +282,27 @@ class StreamlitApp(AppConfig):
         ctx = {}
         if auth_cd is not None and auth_cd:
             tok_res = oc.grant_request(params)
-            print(f"DEBUG S0 ========> token result: {tok_res}")
+            self.logger.debug(
+                f"StreamlitApp.request_access_token(): "\
+                f"Token result - [{tok_res}]"
+            )
+            print()
             if tok_res:
                 dc = ConnectManager.create_default_snow_connect(self)
                 ctx = oc.decode_token(
                     tok_res, ["access_token", "refresh_token"]
                 )
-                print(f"DEBUG S1 => context => {ctx.items}")
+                self.logger.debug(
+                    f"StreamlitApp.request_access_token(): "\
+                    f"Decode token, Context [{ctx.items()}]"
+                )                
                 session = dc.create_session(ctx)
                 if ap is not None:
                     ap.session = session
-                    print(f"DEBUG S2 => session: true")
-
+                    self.logger.debug(
+                        f"StreamlitApp.request_access_token(): "\
+                        f"Creation of snowflake session [OK]"
+                    )
                 tok: Dict = ctx.get("decoded_access_token")
                 if tok:
                     fnm = tok.get("given_name", "")
@@ -311,17 +329,27 @@ class StreamlitApp(AppConfig):
         ctx = {}
         if  refresh_tok is not None and refresh_tok:
             tok_res = oc.refresh_token_request(params)
-            print(f"DEBUG S1 ===========> refersh result: {tok_res}")
+            self.logger.debug(
+                f"StreamlitApp.request_refresh_token(): "\
+                f"Refersh token result- [{tok_res}]"
+            )              
             if tok_res:
                 dc = ConnectManager.create_default_snow_connect(self)
                 ctx = oc.decode_token(
                     tok_res, ["access_token", "refresh_token"]
                 )
                 if ctx.get("access_token"):
-                    print(f"DEBUG S2 ===========> context: true")
+                    self.logger.debug(
+                        f"StreamlitApp.request_refresh_token(): "\
+                        f"Get access token [OK]"
+                    )
                 session = dc.create_session(ctx)
                 if ap is not None:
                     ap.session = session
+                    self.logger.debug(
+                        f"StreamlitApp.request_refresh_token(): "\
+                        f"Creation snowflake session [OK]"
+                    )
 
                 tok: Dict = ctx.get("decoded_access_token")
                 if tok:
