@@ -14,7 +14,6 @@ keywords = ["Snowflake", "Enterprise", "AI/ML", "AI", "ML", "Machine Learning", 
 classifiers = [
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3.8",
-    "Development Status :: Beta",
     "License :: OSI Approved :: Apache Software License", 
     "Topic :: Scientific/Engineering :: Artificial Intelligence",
     "Topic :: Software Development :: Libraries :: Python Modules"
