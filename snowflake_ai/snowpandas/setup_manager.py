@@ -60,6 +60,10 @@ class SetupManager:
         """
         Create default snowflake data setup.
 
+        Args:
+            app_config (AppConfig):
+            def_conn (SnowConnect):
+            
         Returns:
             SnowSetup: default snowflake data setup
         """   
@@ -88,6 +92,7 @@ class SetupManager:
         Args:
             app_config (AppConfig): Application configuration object
             connect (SnowConnect): Default SNowflake Connect object
+            
         Returns:
             List: application data setup instances
         """ 

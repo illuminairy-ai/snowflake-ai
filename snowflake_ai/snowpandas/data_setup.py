@@ -14,7 +14,7 @@ configuration, and tearing-down of data Environment
 __author__ = "Tony Liu"
 __email__ = "tony.liu@yahoo.com"
 __license__ = "Apache License 2.0"
-__version__ = "0.3.0"
+__version__ = "0.4.0"
 
 
 import os
@@ -88,15 +88,14 @@ class DataSetup:
         gk, k = AppConfig.split_group_key(self.datasetup_key)
         config : Dict = app_config.get_all_configs()\
                 [ConfigType.DataSetups.value][gk][k]
+        
         s : str = config.get(ConfigKey.SCRIPT.value)
         m : str = ''
         if s is not None and s:
             m = s.split('.')[0]
-        
         self._logger.debug(
             f"DataSetup.set_script_name(): Script path [{p}]; "\
-            f"Script file [{s}]; Module name [{m}]."
-        )
+            f"Script file [{s}]; Module name [{m}].")
         self._script_name = m
         return m
 
@@ -104,18 +103,7 @@ class DataSetup:
     def load_module(self, name: Optional[str] = '') -> ModuleType:
         if not name:
             name = self._script_name
-        module = None
-        try:
-            module = importlib.import_module(name)
-            self._logger.debug(
-                f"DataSetup.load_module(): Module [{name}] loaded!"
-            )
-        except Exception as e:
-            self._logger.error(
-                f"DataSetup.load_module(): Error - {e} in loading module "\
-                f"[{name}]!"
-            )
-        return module
+        return AppConfig.load_module(name)
 
 
     def get_connect(self) -> DataConnect:
@@ -170,6 +158,10 @@ class DataSetup:
         self.version = setup_d.get(ConfigKey.VERSION.value, "0.1.0")
         self.domain_env = setup_d.get(ConfigKey.DOMAIN_ENV.value, "dev")
         self.data_connect_ref = setup_d.get(ConfigKey.CONN_DATA.value, "")
+        self.script = setup_d.get(ConfigKey.SCRIPT.value, "")
+        self.class_name = setup_d.get(ConfigKey.CLASS_NAME.value, "")
+        self.init_method = setup_d.get(ConfigKey.INIT.value, "init")
+        self.clean_up = setup_d.get(ConfigKey.CLEAN_UP.value, "clean_up")
 
 
 

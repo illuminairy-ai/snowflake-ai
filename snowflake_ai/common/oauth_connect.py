@@ -14,7 +14,7 @@ connection configuration.
 __author__ = "Tony Liu"
 __email__ = "tony.liu@yahoo.com"
 __license__ = "Apache License 2.0"
-__version__ = "0.3.0"
+__version__ = "0.4.0"
 
 
 import sys
@@ -215,12 +215,12 @@ class OAuthConnect(AppConnect):
             token = token_result.get(tok_t)
             if not token:
                 self.logger.error(
-                    "OAuthConnect.decode_token(): No token is found"\
+                    "OAuthConnect.decode_token(): No token is found "\
                     "in the provided response result!"
                 )
             elif self.is_jwt(token):
                 self.logger.debug(
-                    f"OauthConnect.decode_token(): JWT token [{token}]"
+                    f"OauthConnect.decode_token(): JWT token [{token}]."
                 )
                 dtok = jwt.decode(token, options={
                     "verify_signature": self.verify_signature}
@@ -228,8 +228,8 @@ class OAuthConnect(AppConnect):
                 rt[tok_t] = token
                 rt[f"decoded_{tok_t}"] = dtok
             else:
-                self.logger.debug(
-                    f"OauthConnect.decode_token(): Not JWT token [{token}]"
+                self.logger.warn(
+                    f"OauthConnect.decode_token(): Not JWT token [{token}]!"
                 )
                 rt[tok_t] = token
 
@@ -324,7 +324,7 @@ class OAuthConnect(AppConnect):
                     else:
                         self.init_connect_params[oconn] = params
                 self.logger.debug(
-                    f"OAuth_connect.init_connects(): Initialized - "\
+                    f"OAuthConnect.init_connects(): Initialized OAuth - "\
                     f"{self.init_connect_params}"
                 )
                 OAuthConnect._initialized = True

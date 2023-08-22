@@ -14,7 +14,7 @@ of MLOps flow
 __author__ = "Tony Liu"
 __email__ = "tony.liu@yahoo.com"
 __license__ = "Apache License 2.0"
-__version__ = "0.3.0"
+__version__ = "0.4.0"
 
 
 import logging
@@ -40,25 +40,33 @@ class FlowContext:
     """
 
     FLG_DEF = 0
+    T_STEP_ITER = "iteration"
+
+
 
     def __init__(self) -> None:
         self.logger = logging.getLogger(__name__)
-        self.session: Session = None
-        self.pipeline: Dict[str, Callable] = {}
+        self.primary_session: Session = None
+        self.secondary_session: Session = None
+        self.session: Session = self.primary_session
+        self.pipelines: Dict[str, Dict] = {}
         self.data: Dict[str, Any] = {}
         self.indexes: Dict[str, Any] = {}
         self.models: Dict[str, Any] = {}
         self.params: Dict[str, Any] = {}
-        self.step_types: List[str] = []
         self.metrics: Dict[str, Any] = {}
-        self.loggings = {}
-        self.process_flag: int = FlowContext.FLG_DEF
         self.metadata = {}
-        self.direct_inputs = {}
-        self.context_inputs = []
         self.outputs : Dict[str, Any] = {}
         self.debug_info: Dict[str, Any] = {}
         self.debug = True
+
+        self.pipeline: Dict[str, Callable] = {}
+        self.step_types: List[str] = []
+        self.loggings = {}
+        self.process_flag: int = FlowContext.FLG_DEF
+        self.direct_inputs = {}
+        self.context_inputs = []
+    
 
 
     @staticmethod

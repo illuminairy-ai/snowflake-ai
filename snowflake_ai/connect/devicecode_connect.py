@@ -13,7 +13,7 @@ This module contains Device code flow OAuthConnect class.
 __author__ = "Tony Liu"
 __email__ = "tony.liu@yahoo.com"
 __license__ = "Apache License 2.0"
-__version__ = "0.3.0"
+__version__ = "0.4.0"
 
 
 import time
@@ -239,7 +239,7 @@ class DeviceCodeConnect(OAuthConnect):
 
         headers = {"Content-Type": self.content_type}
         self.logger.debug(
-            f"AuthCodeConnect.refresh_token_request(): Payload => {payload}"
+            f"DeviceCodeConnect.refresh_token_request(): Payload => {payload}"
         )
 
         try:
@@ -248,13 +248,13 @@ class DeviceCodeConnect(OAuthConnect):
             return response.json()
         except requests.HTTPError as http_err:
             self.logger.error(
-                f"AuthCodeConnect.refresh_token_request(): "\
+                f"DeviceCodeConnect.refresh_token_request(): "\
                 f"HTTP error occurred: {http_err}!"
             )
             return {}
         except Exception as err:
             self.logger.error(
-                f"AuthCodeConnect.refresh_token_request(): "\
+                f"DeviceCodeConnect.refresh_token_request(): "\
                 f"Other error occurred: {err}!"
             )
             return {}

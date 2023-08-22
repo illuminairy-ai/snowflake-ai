@@ -4,7 +4,7 @@
 Snowflake-AI
 =======
 
-*Snowflake_AI* is a Snowflake-centric **Enterprise AI/ML** framework with the tight integration of popular Python data science libraries, e.g., *Pandas*, *Scikit-Learn*, *Pytorch*, *MLFlow*, *Tensorflow*, etc. This project simplifies the process of integrating your company's Snowflake data securely with those popular libraries, making it easier to develop *Snowflake AI* applications leveraging *Snowpark* and other Snowflake ML capabilities to deploy machine learning models in the production environment following the standard MLOps process and enterprise security and governance. Currently, this framework supports OAuth (Authorization Code flow, Device Code flow, etc.) and SAML SSO Snowflake Connection, Streamlit and Notebook Apps development framework, build-in light-weigth MLOps pipelines and initial *Snowpandas* feature engineering APIs.
+*Snowflake_AI* is a Snowflake-centric **Enterprise AI/ML** framework with the tight integration of popular Python data science libraries, e.g., *Pandas*, *Scikit-Learn*, *Pytorch*, *MLFlow*, *Tensorflow*, etc. This project simplifies the process of integrating your company's Snowflake data securely with those popular libraries, making it easier to develop *Snowflake AI* applications leveraging *Snowpark* and other Snowflake ML capabilities to deploy machine learning models in the production environment following the standard MLOps process and enterprise security and governance. Currently, this framework supports OAuth (Authorization Code flow, Device Code flow, Client Credentials flow, etc.) and SAML SSO Snowflake Connection, Streamlit and Notebook Apps development framework, build-in light-weigth MLOps pipelines and initial *Snowpandas* feature engineering APIs.
 
 
 Installation
@@ -26,15 +26,15 @@ poetry add snowflake-ai
 Configuration
 -------
 
-Copy the sample configuration file from the <installed lib dir>/snowflake_ai/conf directory and update the Snowflake connection parameters.
+Copy the sample configuration file from the {installed lib dir}/snowflake_ai/conf directory and update the Snowflake connection parameters.
 
-For example, you may do the following to find out where is the <installed lib dir>:
+For example, you may do the following to find out where is the {installed lib dir}:
 
 ```bash
 pip show snowflake-ai
 ```
 
-While you are in <installed lib dir>, you may do:
+While you are in {installed lib dir}, you may do:
 
 ```bash
 mkdir -p ~/.snowflake_ai/conf

@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.4.0
+
+*Release date*: 2023-08-22
+
+### Added
+
+* OAuth Support (Client Credentials Flow)
+
+
 ## 0.3.0
 
 *Release date*: 2023-08-08

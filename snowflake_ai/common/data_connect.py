@@ -14,7 +14,7 @@ connection configuration.
 __author__ = "Tony Liu"
 __email__ = "tony.liu@yahoo.com"
 __license__ = "Apache License 2.0"
-__version__ = "0.3.0"
+__version__ = "0.4.0"
 
 
 import sys
@@ -63,17 +63,6 @@ class DataConnect(AppConnect):
         self.logger = DataConnect._logger
         self._current_connection = None
 
-        # create data service connection and store at DataConnect class
-        if (self.connect_key is not None) and self.connect_key:
-            if ((self.data_connections.get(self.connect_key) is None) \
-                    or (not self.is_current_active())) \
-                    and (not self.is_oauth_saml_type()):
-                self.data_connections[self.connect_key] = \
-                    self.create_connection(self.connect_params)
-                self.set_current_connection(
-                    self.data_connections[self.connect_key]
-                )
-
         # load default data service connection
         if (connect_key is None or not connect_key or \
                 self._current_connection is None) and self.data_connections:
@@ -94,6 +83,7 @@ class DataConnect(AppConnect):
             self.connect_key = connect_key
             self.connect_group, self.connect_name = \
                 AppConfig.split_group_key(connect_key)
+       
         self.logger.debug(f"DataConnect.init(): Connect_group"\
                 f"[{self.connect_group}]; Connect_key[{self.connect_key}]"\
                 f"; Connect_name[{self.connect_name}]")
@@ -120,15 +110,14 @@ class DataConnect(AppConnect):
                                 self._configs)
             else:
                 self.oauth_connect_config = {}
-            self.logger.debug(f"DataConnect.init(): Snowflake OAuth Referenced"\
-                    f" Configuration => {self.oauth_connect_config}")
+
+            self.logger.debug(f"DataConnect.init(): Snowflake OAuth "\
+                    f" Configuration => {self.oauth_connect_config}.")
 
             # match oauth connect connect_type
             if self.oauth_connect_config:
                 self.oauth_flow_type = self.oauth_connect_config.get(
                         ConfigKey.TYPE.value, "")
-            else:
-                self.oauth_flow_type = ""
             
 
 
@@ -167,7 +156,7 @@ class DataConnect(AppConnect):
 
         if ((not self.is_current_active()) or \
                 (self.data_connections.get(self.connect_key) is None)) \
-                and (not self.is_oauth_saml_type()):
+                and (self.is_service_connect()):
             self.data_connections[self.connect_key] = \
                 self.create_connection(self.connect_params)
             self.set_current_connection(
@@ -297,7 +286,7 @@ class DataConnect(AppConnect):
                 self.connect_key = qk
                 self.connect_params = params
                 self.connect_group = gk
-                if not self.is_oauth_saml_type():
+                if self.is_service_connect():
                     self.data_connections[qk] = self.create_connection(params)
                     self._current_connection = self.data_connections[qk]
 
@@ -330,15 +319,27 @@ class DataConnect(AppConnect):
                             f"DataConnect.init_connets(): Error - [{dconn}]"\
                             " doesn't exist in the configuration!"
                         )
-                    elif not self.is_oauth_saml_type():
-                        c = self.create_connection(params)
+                    elif self.is_service_connect():
                         s = f"{DataConnect.K_DATA_CONN}.{dconn}"
-                        self.data_connections[s] = c
+                        if self.data_connections.get(s) is None:
+                            self.data_connections[s] = \
+                                    self.create_connection(params)
+                            self.set_current_connection(
+                                    self.data_connections[s]
+                                )
                 DataConnect._initialized = True
         
         n = len(self.data_connections)
         self.logger.debug(
-            f"DataConnect.init_connects(): [{n}] shared (non-oauth) "\
-            f"data service connects have been established."
+            f"DataConnect.init_connects(): [{n}] shared (service) "\
+            f"data connections have been established."
         )
         return n
+
+
+    def is_service_connect(self) -> bool:
+        """
+        Return whether this application connect is service type.
+        This should be overridden by its childen class.
+        """
+        return False

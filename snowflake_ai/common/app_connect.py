@@ -14,7 +14,7 @@ application integration connection for data, security, etc.
 __author__ = "Tony Liu"
 __email__ = "tony.liu@yahoo.com"
 __license__ = "Apache License 2.0"
-__version__ = "0.3.0"
+__version__ = "0.4.0"
 
 
 import sys
@@ -83,10 +83,10 @@ class AppConnect:
                 AppConfig.split_group_key(connect_key)
         self.connect_key, self.connect_params = \
                 AppConnect.load_connect_config(self.connect_key, self._configs)
-        self.logger.info(
+        self.logger.debug(
                 f"AppConnect.init(): Connect group [{self.connect_group}]; "\
                 f"Connect key [{self.connect_key}]; "\
-                f"Connect Config Params => {self.connect_params}"
+                f"App Connect Config Params => {self.connect_params}."
             )
 
         if self.connect_key and self.connect_params:
@@ -98,9 +98,8 @@ class AppConnect:
             self.type = self.connect_params.get(
                     ConfigKey.TYPE.value, '')
             self.connect_type = self.type
+            self.oauth_flow_type = ""
 
-        # setup initialization
-        self.init_connects()
 
 
     @staticmethod

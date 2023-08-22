@@ -14,7 +14,7 @@ configrations.
 __author__ = "Tony Liu"
 __email__ = "tony.liu@yahoo.com"
 __license__ = "Apache License 2.0"
-__version__ = "0.3.0"
+__version__ = "0.4.0"
 
 
 from enum import Enum
@@ -22,9 +22,11 @@ import os
 import sys
 from os.path import exists
 from pathlib import Path
+from types import ModuleType
 from typing import Optional, Union, Dict, Tuple, Any
 import logging
 import toml
+import importlib
 from importlib.resources import read_text
 
 
@@ -68,15 +70,21 @@ class ConfigKey(Enum):
     SCRIPT_HOME = "script_home"
     CONN_OAUTH = "oauth_connect"
     CONN_DATA = "data_connect"
-    STEPS = "steps"
-    CLASS = "class"
+    STEP_TASKS = "step_tasks"
     RUN = "run"
+    INIT = "init"
+    CLEAN_UP = "clean_up"
     ACCT = "account"
     DB = "database"
     WH = "warehouse"
     SCH = "schema"
     ROLE = "role"
     USER = "user"
+    REG_TABLE = "registry_table"
+    EXE_MODE = "execution_mode"
+    CLASS_NAME = "class"
+    FEAT_STORE = "feature_store"
+    MODEL_REG = "model_registry"
 
 
 
@@ -118,6 +126,7 @@ class AppConfig:
     DEF_CURR_PATH = "."
     DEF_HOME_PATH = "~"    
 
+    # value types for the config keys
     T_DEFAULT = "default"
     T_DEF = "_def"
     T_CONN_SNFLK = "snowflake"
@@ -125,11 +134,14 @@ class AppConfig:
     T_OAUTH = "oauth"
     T_OAUTH_DEVICE = "device_code"
     T_OAUTH_CODE = "auth_code"
-    T_OAUTH_CRED = "client_credentials"
+    T_OAUTH_CREDS = "client_credentials"
     T_AUTH_SNFLK = "snowflake"
     T_AUTH_KEYPAIR = "keypair"
     T_AUTH_EXT_BROWSER = "externalbrowser"
     T_AUTH_OAUTH = "oauth"    
+    T_EXE_SEQ = "sequential"
+    T_EXE_PAR = "parallelable"
+    T_REG_TBL_DEF = "default_model_registry"
 
 
     logging.basicConfig(
@@ -139,15 +151,19 @@ class AppConfig:
     _logger = logging.getLogger(__name__)
     _logger.addHandler(logging.StreamHandler(sys.stdout))
 
+    # only init one in runtime
     _initialized = False
     _configs_root = ''
     _configs_path = ''
 
     # store all configs at class level
-    _configs = {}
+    _configs: Dict[str, Dict] = {}
 
-    # store appconfig ref by app at class level
+    # store appconfig ref by specific app key at class level
     _apps = {}
+
+    # init lib load system path
+    _init_lib_path = False
 
 
     def __init__(
@@ -168,9 +184,11 @@ class AppConfig:
         """
         self.logger = AppConfig._logger
         self.app_key = app_key.strip().lower()
+
+        # init all configs and configs dict
         self.root_path = AppConfig._init_all_configs(config_dir, config_file)
 
-        # get group_key.app_name , [apps.<group_key>.<app_name>] config
+        # get group_key.app_name , [apps.<group_key>.<app_name>] app config
         self.app_key, self.app_config = AppConfig.load_app_config(
                 self.app_key)
         self.app_name = self.app_config.get(ConfigKey.APP_NAME.value,
@@ -181,31 +199,43 @@ class AppConfig:
                 self.app_key.lower().replace('.', '_')
             )
 
-        # set app global attrs, app type, and root path
-        self.type =  self.get_all_configs()[ConfigType.Apps.value].get(
+        # init config dict, set app global attrs, app type, and root path
+        self.type =  AppConfig._configs[ConfigType.Apps.value].get(
                 ConfigKey.TYPE.value, AppType.Default.value)
-        self.root_path =  self.get_all_configs()[ConfigType.Apps.value].get(
-                ConfigKey.ROOT_PATH.value, os.path.abspath(AppConfig.DEF_CURR_PATH))
+        self.root_path =  AppConfig._configs[ConfigType.Apps.value].get(
+                ConfigKey.ROOT_PATH.value, 
+                os.path.abspath(AppConfig.DEF_CURR_PATH))
 
-        # initialize app specific attrs, e.g., name, type, path
+        # initialize additional app specific attrs, e.g., name, type, path
         self._init_app_base_config()
         if bool(self.app_key) and bool(self.app_config):
-            self.apps[self.app_key] = self
+            self._apps[self.app_key] = self
 
+        self.logger.debug(
+                f"AppConfig.init(): App_name [{self.app_name}]; "\
+                f"App_group [{self.app_group}]; Root_path [{self.root_path}]"\
+                f"; Script_home [{self.script_home}]") 
+        
         # get base app config
         _, self.app_base_config = AppConfig.get_group_item_config(
-                self.app_key, ConfigType.BaseApps.value)
+                self.app_key, ConfigType.BaseApps.value, self._configs)
+        self.logger.debug(
+                f"AppConfig.init(): BaseAppConfigs => "\
+                f"{self.app_base_config}.")        
         self.app_connect_refs = self.app_base_config.get(
                 ConfigType.AppConnects.value, [])
+        self.ml_ops_refs = self.app_base_config.get(
+                ConfigType.MLOps.value, [])
         self.data_setup_refs = self.app_base_config.get(
                 ConfigType.DataSetups.value, [])        
         self.ml_pipeline_refs = self.app_base_config.get(
                 ConfigType.MLPipelines.value, [])
-        self.ml_ops_refs = self.app_base_config.get(
-                ConfigType.MLOps.value, [])
+        self.logger.debug(f"AppConfig.init(): App_key [{self.app_key}]; "\
+                f"App_connect_ref [{self.app_connect_refs}]; "\
+                f"Data_setup_ref [{self.data_setup_refs}]")
 
         # get oauth and data connect configs groups
-        d_conn: Dict = AppConfig.get_all_configs().get(
+        d_conn: Dict = AppConfig._configs.get(
                 ConfigType.AppConnects.value)
         self.oauth_connect_configs: Dict = {}
         if d_conn is not None:
@@ -215,7 +245,6 @@ class AppConfig:
         if d_conn is not None:
             d_data_conn = d_conn.get(ConfigType.DataConnects.value)
             self.data_connect_configs = d_data_conn
-
         
 
 
@@ -320,12 +349,14 @@ class AppConfig:
     ) -> Dict:
         rd = {}
         files_tsd = {}
+        toml_files = [] if config_file is None else [config_file]
+
         if (config_dir is not None) and (config_dir.strip()):
             config_dir = os.path.abspath(config_dir.strip())
 
         if not exists(config_dir):
             AppConfig._logger.warning(
-                f"AppConfig._load_toml_files(): Directory {config_dir}"\
+                f"AppConfig._load_toml_files(): Directory [{config_dir}]"\
                 " doesn't exist!"
             )
             return rd
@@ -359,6 +390,7 @@ class AppConfig:
                             f" check format! Error - {e}!"
                         )
                 file_ts = os.path.getmtime(config_file_path)
+                config_file = config_file_path
 
                 for key, value in toml_dict.items():
                     key = key.strip().lower()
@@ -368,8 +400,9 @@ class AppConfig:
 
         AppConfig._logger.info(
             f"DataConnect._load_toml_files(): Loaded configuration from "\
-            f"path [{config_dir}]; Configuration keys [{rd.keys()}]."
-        )        
+            f"directory [{config_dir}]; Loaded files => {toml_files};"\
+            f" Configuration keys => {rd.keys()}."
+        )
         AppConfig._logger.debug(
             f"DataConnect._load_toml_files(): Loaded configuration from "\
             f"path [{config_dir}]; Detailed App_config [{rd}]."
@@ -433,6 +466,10 @@ class AppConfig:
         rd = {}
         gp_itm_key = group_item_key.strip().lower()
         gk, ik = AppConfig.split_group_key(gp_itm_key)
+        AppConfig._logger.debug(
+            f"AppConfig.get_group_item_config(): Split key - "\
+            f"GroupKey [{gk}]; ItemKey[{ik}]."
+        )
         if (not gk) and ik:
             k, rd = AppConfig.search_key_by_group(
                 ik, root_key, configs
@@ -444,18 +481,21 @@ class AppConfig:
                 gk, root_key, configs
             )
         else:
-            gs = dict(configs[root_key]).get(gk)
+            gs: Dict[str, Dict] = dict(configs[root_key]).get(gk)
             if gs is not None:
                 k = f"{gk}.{ik}"
-                rd =  configs[root_key][gk][ik] \
-                    if dict(configs[root_key][gk]).get(ik) \
-                        is not None else {}
+                rd =  gs[ik] if gs.get(ik) is not None else {}
+                AppConfig._logger.debug(
+                    f"AppConfig.get_group_item_config(): Root_key"\
+                    f"[{root_key}]; GroupKey [{gk}]; "\
+                    f"ItemConfigs [{gs}]; ItemKey[{ik}]; Config => {rd}."
+                )
             else:
                 k, rd =  f"{gk}.{ik}", {}
 
         AppConfig._logger.debug(
             f"AppConfig.get_group_item_config(): Loaded group item "\
-            f"configration with key [{k}]."
+            f"configration with key [{k}]; Config => {rd}."
         )
         return (k, rd)
 
@@ -476,7 +516,7 @@ class AppConfig:
         Returns:
             Tuple[str, dict]: tuple of the app key string matched in
             a form of group_key.app_name and the dictionary of loaded
-            application configurations
+            application specific configurations
         """
         return AppConfig.get_group_item_config(
                 app_key,
@@ -582,10 +622,50 @@ class AppConfig:
         return (group_k, k)
 
 
-    @classmethod
-    def get_qualified_key(cls, root_key: str, key: str) -> str:
+    @staticmethod
+    def load_module(
+            script_name: str,
+            root_path: str = "",
+            script_home: str = ""
+    ) -> ModuleType:
+        if (script_name) is None or (not script_name):
+            AppConfig._logger.warn(
+                f"AppConfig.load_module(): Module script name is "\
+                f"[{script_name}]!"
+            )
+            return None
+        
+        if (script_name is not None) and ('.' in script_name):
+            script_name = script_name.split('.')[0]
+        
+        if (not AppConfig._init_lib_path) and root_path and script_home:
+            p = os.path.join(root_path, script_home)
+            sys.path.insert(0, os.path.expanduser(p))
+            AppConfig._init_lib_path = True
+
+        AppConfig._logger.debug(
+            f"AppConfig.load_module(): Load [{script_name}] "\
+            f"from root_path[{root_path}]/script_home[{script_home}]."
+        )
+        module = None
+        try:
+            module = importlib.import_module(script_name)
+            AppConfig._logger.debug(
+                f"AppConfig.load_module(): Module [{script_name}] loaded!"
+            )
+        except Exception as e:
+            AppConfig._logger.error(
+                f"AppConfig.load_module(): Error - {e} in loading module "\
+                f"[{script_name}]!"
+            )
+        return module
+    
+
+    @staticmethod
+    def get_qualified_key(root_key: str, key: str) -> str:
         """
-        Get fully qualified key in form of <group_key>.<key>
+        Get fully qualified key in form of <group_key>.<key> by searching
+        key from root_key.
 
         Returns:
             A string representing a fully qualified key in config dict.
@@ -597,7 +677,7 @@ class AppConfig:
         
         gk, k = AppConfig.split_group_key(key)
         if k:
-            configs: dict = cls.get_all_configs()
+            configs: dict = AppConfig.get_all_configs()
             ret_k, _ = AppConfig.search_key_by_group(k, root_key, configs)
             if not ret_k:
                 raise ValueError(
@@ -613,24 +693,6 @@ class AppConfig:
             )
         return ret_k
 
-
-    @classmethod
-    def _init_all_configs(
-        cls,
-        config_dir : Optional[Union[str, None]] = None, 
-        config_file : Optional[Union[str, None]] = None
-    ) -> str:
-        """
-        Initialize the dictionary of all application configurations
-
-        Returns:
-            The root directory path where the configs are loaded from.
-        """        
-        if not cls._initialized:
-            cls._configs_root, cls._configs_path, cls._configs = \
-                AppConfig.load_configs(config_dir, config_file)
-            cls._initialized = True
-        return cls._configs_root
 
 
     def _init_app_base_config(self):
@@ -660,8 +722,27 @@ class AppConfig:
         # set app script home path dir (for all app related scripts)
         self.script_home = self.app_config.get(ConfigKey.SCRIPT_HOME.value,
                  AppConfig.DEF_CURR_PATH)
-    
 
+
+    @classmethod
+    def _init_all_configs(
+        cls,
+        config_dir : Optional[Union[str, None]] = None, 
+        config_file : Optional[Union[str, None]] = None
+    ) -> str:
+        """
+        Initialize the dictionary of all application configurations
+
+        Returns:
+            The root directory path where the configs are loaded from.
+        """        
+        if not cls._initialized:
+            cls._configs_root, cls._configs_path, cls._configs = \
+                AppConfig.load_configs(config_dir, config_file)
+            cls._initialized = True
+        return cls._configs_root
+
+    
     @classmethod
     def get_configs_root(cls) -> str:
         """

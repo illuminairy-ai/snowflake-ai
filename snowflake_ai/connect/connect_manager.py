@@ -26,7 +26,7 @@ from snowflake_ai.common import  ConfigKey, ConfigType
 from snowflake_ai.common import AppConfig, AppConnect
 from snowflake_ai.common import DataConnect, OAuthConnect
 from snowflake_ai.connect import SnowConnect, AuthCodeConnect
-from snowflake_ai.connect import DeviceCodeConnect
+from snowflake_ai.connect import DeviceCodeConnect, ClientCredsConnect
 
 
 class ConnectManager:
@@ -112,8 +112,8 @@ class ConnectManager:
         if _initialized is None or not _initialized:
             cls._app_conn_lst_d[app_config.app_key] = []
             cls._logger.debug(
-                "ConnectionManager.create_app_connects(): "\
-                f"App_connect_refs => {app_config.app_connect_refs}"
+                "ConnectManager.create_app_connects(): "\
+                f"App_connect_refs => {app_config.app_connect_refs}."
             )
             for ck in app_config.app_connect_refs:
                 gk, k = AppConfig.split_group_key(ck)
@@ -129,7 +129,7 @@ class ConnectManager:
                             AppConnect.get_app_connects()[ck] = ac
                         cls._app_conn_lst_d[app_config.app_key].append(ac)
                         cls._logger.debug(
-                            "ConnectionManager.create_app_connects(): "\
+                            "ConnectManager.create_app_connects(): "\
                             f"Initialize [{config[ConfigKey.TYPE.value]}] "\
                             f"OAuth Connection with Connect_Key[{ck}]."
                         )
@@ -142,7 +142,20 @@ class ConnectManager:
                             AppConnect.get_app_connects()[ck] = ac
                         cls._app_conn_lst_d[app_config.app_key].append(ac)
                         cls._logger.debug(
-                            "ConnectionManager.create_app_connects(): "\
+                            "ConnectManager.create_app_connects(): "\
+                            f"Initialize [{config[ConfigKey.TYPE.value]}] "\
+                            f"OAuth Connection with Connect_Key[{ck}]."
+                        )
+
+                    elif config[ConfigKey.TYPE.value] == \
+                            AppConfig.T_OAUTH_CREDS:
+                        ac = AppConnect.get_app_connects().get(ck)
+                        if ac is None:
+                            ac = ClientCredsConnect(ck, app_config)
+                            AppConnect.get_app_connects()[ck] = ac
+                        cls._app_conn_lst_d[app_config.app_key].append(ac)
+                        cls._logger.debug(
+                            "ConnectManager.create_app_connects(): "\
                             f"Initialize [{config[ConfigKey.TYPE.value]}] "\
                             f"OAuth Connection with Connect_Key[{ck}]."
                         )
@@ -155,9 +168,9 @@ class ConnectManager:
                             AppConnect.get_app_connects()[ck] = ac
                         cls._app_conn_lst_d[app_config.app_key].append(ac)
                         cls._logger.debug(
-                            "ConnectionManager.create_app_connects(): "\
+                            "ConnectManager.create_app_connects(): "\
                             f"Initialize [{config[ConfigKey.TYPE.value]}] "\
-                            f"Data Connection with Connect_Key[{ck}]."
+                            f"Data Connect with Connect_Key[{ck}]."
                         )
             
             cls._init_d[app_config.app_key] = True
@@ -195,7 +208,7 @@ class ConnectManager:
                 )
                 if (c.auth_type == AppConfig.T_AUTH_KEYPAIR) or \
                         (c.auth_type == AppConfig.T_AUTH_SNFLK) or\
-                        (c.oauth_flow_type == AppConfig.T_OAUTH_CRED):
+                        (c.oauth_flow_type == AppConfig.T_OAUTH_CREDS):
                     return c.get_service_session()
         return None
     

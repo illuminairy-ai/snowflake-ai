@@ -7,27 +7,55 @@
 # except in compliance with the License. See the LICENSE file for details.
 
 """
-This module contains FlowOps class for ML flow operationization
+This module contains MLOps class for ML flow operationization
 targeting production domain/environment
 """
 
 __author__ = "Tony Liu"
 __email__ = "tony.liu@yahoo.com"
 __license__ = "Apache License 2.0"
-__version__ = "0.3.0"
+__version__ = "0.4.0"
 
 
+import logging
 from concurrent.futures import ThreadPoolExecutor
-from snowflake_ai.mlops import Pipeline
+from typing import Dict, List
+
+from snowflake_ai.common import AppConfig
+from snowflake_ai.mlops import FlowContext
+from snowflake_ai.mlops import Pipeline, TaskType
+
+
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s [%(levelname)s]  %(message)s'
+)
+
+
+
+class MLOps:
+    pass
+
 
 
 class PipelineFlow:
     """
-    This class provides general setup for MLops flow in
+    This class manages multiple pipelines as an overall flow in MLOps
     operationalizing the model pipeline built, including deloyment
     serving the model, monitor and re-train the model 
     (To-DO).
     """
 
-    def __init__(self) -> None:
+    def __init__(
+            self,
+            flow_key: str,
+            ctx: FlowContext = None,
+            app_config: AppConfig = None            
+    ) -> None:
         super().__init__()
+        self.logger = logging.getLogger(__name__)
+
+
+    def execute(self):
+        pass

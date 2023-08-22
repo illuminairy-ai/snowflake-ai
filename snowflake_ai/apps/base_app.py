@@ -13,7 +13,7 @@ This module contains a default base application
 __author__ = "Tony Liu"
 __email__ = "tony.liu@yahoo.com"
 __license__ = "Apache License 2.0"
-__version__ = "0.3.0"
+__version__ = "0.4.0"
 
 
 import os
@@ -34,15 +34,16 @@ from snowflake.snowpark.dataframe import DataFrame as SDF
 from snowflake.snowpark.types import StructType
 from snowflake.snowpark import Session
 
-from snowflake_ai.common import AppConfig, DataConnect
+from snowflake_ai.common import AppConfig
+from snowflake_ai.common import ConfigManager
 from snowflake_ai.common import ConfigKey, ConfigType, AppType
 from snowflake_ai.connect import ConnectManager, SnowConnect
 from snowflake_ai.connect import DataFrameFactory as DFF
-from snowflake_ai.snowpandas import SetupManager, DataSetup
+from snowflake_ai.snowpandas import SetupManager, DataSetup, SnowSetup
 from snowflake_ai.mlops import FlowContext, Pipeline
 
 
-class BaseApp(AppConfig):
+class BaseApp:
     """
     This class represents a base application's configurations and 
     its corresponding application. Since it is subclass of AppConfig,
@@ -67,6 +68,9 @@ class BaseApp(AppConfig):
     _logger = logging.getLogger(__name__)
     _logger.addHandler(logging.StreamHandler(sys.stdout))
 
+    # app_key : app specific config dictionary
+    _base_apps : Dict [str, Dict] = {}
+
 
     def __init__(
         self,
@@ -84,8 +88,35 @@ class BaseApp(AppConfig):
             config_dir: directory path string for custom config load
             config_file: file name string for custom config load
         """
-        super().__init__(app_key, config_dir, config_file)
         self.logger = self._logger
+        ac: AppConfig = ConfigManager.get_app_config(
+                app_key, config_dir, config_file)
+        self.logger.debug(
+                f"BaseApp.init(): AppConfig - AppKey [{ac.app_key}]; "\
+                f"Version [{ac.version}]; Root_path [{ac.root_path}];"\
+                f" Script_home [{ac.script_home}].")
+        self.appconf = ac
+        self.all_configs = AppConfig.get_all_configs()
+        self.app_key = ac.app_key
+        self.root_path = ac.root_path
+        self.app_config = ac.app_config
+        self.app_name = ac.app_name
+        self.app_group = ac.app_group
+        self.app_short_name = ac.app_short_name
+        self.type = ac.type
+        self.group_config = ac.group_config
+        self.version = ac.version
+        self.domain_env = ac.domain_env
+        self.app_path = ac.app_path
+        self.script_home = ac.script_home
+        self.app_base_config = ac.app_base_config
+        self.app_connect_refs = ac.app_connect_refs
+        self.ml_ops_refs = ac.ml_ops_refs
+        self.oauth_connect_configs = ac.oauth_connect_configs
+        self.data_connect_configs = ac.data_connect_configs
+        self.data_setup_refs = ac.data_setup_refs
+        self.ml_pipeline_refs = ac.ml_pipeline_refs
+        
         if self.type not in [AppType.Default.value, AppType.Console,
                 AppType.Notebook.value, AppType.Streamlit.value]:
             raise TypeError(
@@ -93,11 +124,11 @@ class BaseApp(AppConfig):
             )
         
         # get default snowflake connection
-        self.snow_connect = ConnectManager.create_default_snow_connect(self)
-        self.default_setup = SetupManager.create_default_snow_setup(
-            self, self.snow_connect
-        )
-        self.setup_module = self.default_setup.load_module()
+        self.snow_connect = ConnectManager.create_default_snow_connect(
+                self.appconf)
+        self.default_setup: SnowSetup = SetupManager.create_default_snow_setup(
+                self.appconf, self.snow_connect)
+        self.setup_module = self.load_module(self.default_setup.script)
         self.default_context = FlowContext()
         self.app_namespaces = self.get_app_namespaces()
         self.default_context.data["app_namespace"] = self.app_namespaces[0]
@@ -109,9 +140,13 @@ class BaseApp(AppConfig):
         if session is not None:
             self.default_context.session = session
             self.set_traditional_western_week_policy(session)
-            self.default_pipeline = Pipeline(self.default_context)
+            if len(self.ml_pipeline_refs) > 0:
+                pipeline_key = self.ml_pipeline_refs[0]
+                self.default_pipeline = Pipeline(
+                        pipeline_key, self.default_context, self.appconf)
         else:
-            print(f"BaseApp.init(): Got session [{session}]")
+            self.logger.debug(f"BaseApp.init(): Got session [{session}]")
+
 
 
     def set_traditional_western_week_policy(
@@ -132,12 +167,16 @@ class BaseApp(AppConfig):
         ] = None,
         index: Optional[Axes] = None,
         dtype: Optional[Dtype] = None,
+        session: Session = None
     ) -> Union[SDF, DF]:
-        if self.default_context.session is None:
+        if session is None:
+            session = self.default_context.session
+        
+        if session is None:
             return DFF.create_df(data, None, columns, index, dtype)
         else:
             return DFF.create_df(
-                data, self.default_context.session, columns, index, dtype
+                data, session, columns, index, dtype
             )
 
 
@@ -149,7 +188,7 @@ class BaseApp(AppConfig):
         return self.default_setup.load_module()
 
 
-    def get_default_setup(self) ->DataSetup:
+    def get_default_setup(self) -> DataSetup:
         return self.default_setup
 
 
@@ -163,7 +202,41 @@ class BaseApp(AppConfig):
         return session
 
 
+    def get_default_pipeline_config(self, pipeline_key):
+        _, d = self.get_group_item_config(
+                pipeline_key, ConfigType.MLPipelines.value, self.appconf)
+        return d
+
+
     def run_default_pipeline(self):
         self.default_pipeline.run()
     
 
+    def get_app_namespaces(self) -> Tuple[str, str]:
+        return self.appconf.get_app_namespaces()
+
+
+    def load_configs(
+        self,
+        config_dir : Optional[Union[str, None]] = None, 
+        config_file : Optional[Union[str, None]] = None
+    ) -> Tuple[str, str, Dict]:
+        return self.appconf.load_configs(config_dir, config_file)
+
+    
+    def load_default_configs(self) -> Dict:
+        return self.appconf.load_default_configs()
+
+
+    def get_group_item_config(
+        self,
+        group_item_key: str,
+        root_key: str,
+        configs: Optional[Union[Dict, None]] = None
+    ) -> Tuple[str, Dict]:
+        return self.appconf.get_group_item_config(
+                group_item_key, root_key, configs)
+
+
+    def load_module(self, script_name: str) -> ModuleType:
+        return AppConfig.load_module(script_name)

@@ -14,7 +14,7 @@ building, training, validation and testing in DEV domain.
 __author__ = "Tony Liu"
 __email__ = "tony.liu@yahoo.com"
 __license__ = "Apache License 2.0"
-__version__ = "0.3.0"
+__version__ = "0.4.0"
 
 
 import logging
@@ -23,6 +23,7 @@ from functools import wraps
 from typing import Any, Callable, Dict, List, Optional, Tuple
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
+from snowflake_ai.common import AppConfig, ConfigType, ConfigKey
 from snowflake_ai.mlops import FlowContext
 
 
@@ -62,29 +63,26 @@ class TaskType(Enum):
 
 class Step:
 
+    _step_id = 0
+
     def __init__(
             self,
-            fn: Callable, 
+            func: Callable, 
             ctx: FlowContext,
-            conditions: List[Callable] = None, 
-            task_type: str = None, 
-            predecessors: List['Step'] = None, 
-            successors: List['Step'] = None
+            task_type: TaskType = None, 
+            predecessor: 'Step' = None, 
+            successor: 'Step' = None,
+            iteration = 1
         ):
-        self.fn = fn
+        self.func = func
         self.context = ctx
-        self.conditions = conditions if conditions is not None else []
         self.task_type = task_type
-        self.predecessors = predecessors if predecessors is not None else []
-        self.successors = successors if successors is not None else []
-        self.finished = False
-
-
-    def execute(self, context):
-        if all(condition(context) for condition in self.conditions):
-            for _ in range(self.iterations):
-                context = self.fn(context)
-        return context
+        self.predecessor = predecessor
+        self.successor = successor
+        self.iteration = iteration
+        self.error = False
+        Step._step_id += 1
+        self.step_id = Step._step_id
 
 
 
@@ -94,14 +92,119 @@ class Pipeline:
     model building, training, validation and testing. 
     """
 
-    def __init__(self, ctx: FlowContext = None) -> None:
+    def __init__(
+            self, 
+            pipeline_key: str,
+            ctx: FlowContext = None,
+            app_config: AppConfig = None
+    ) -> None:
         self.logger = logging.getLogger(__name__)
+        self.pipeline_key = pipeline_key
+        _, self.pipeline_name = AppConfig.split_group_key(self.pipeline_key)
         if ctx is None:
             self.flow_context = FlowContext()
         else:
             self.flow_context = ctx
-        self.main : Callable = None
-    
+        self.flow_context.pipelines[pipeline_key] = {}
+        self.pipeline_context = \
+                self.flow_context.pipelines[pipeline_key]
+        self.app_config = app_config
+        self.steps : List[Step] = []
+        self.step_tasks : List[TaskType] = []
+        self.run: Callable = None
+        self._init_pipeline_config()
+
+
+
+    def _init_pipeline_config(self):
+        conf_d = AppConfig.get_all_configs() if self.app_config is None \
+                else self.app_config.get_all_configs()
+        _, pp_config = AppConfig.get_group_item_config(
+                self.pipeline_key,
+                ConfigType.MLPipelines.value,
+                conf_d
+            )
+        self.pipeline_type = pp_config.get(ConfigKey.TYPE.value, "")
+        self.type = self.pipeline_type
+        self.execution_mode = pp_config.get(ConfigKey.EXE_MODE.value, "")
+        self.script = pp_config.get(ConfigKey.SCRIPT.value, "")
+        self.class_name = pp_config.get(ConfigKey.CLASS_NAME.value, "")
+        self.run_method = pp_config.get(ConfigKey.RUN.value, "")
+        self.step_tasks = pp_config.get(ConfigKey.STEP_TASKS.value, [])
+
+        rt = "" if self.app_config is None else self.app_config.root_path
+        s = "" if self.app_config is None else self.app_config.script_home
+        script_module = AppConfig.load_module(self.script, rt, s)
+        if self.class_name:
+            class_ = getattr(script_module, self.class_name)
+            instance = class_()
+            self.run = getattr(instance, self.run_method, "run") 
+        else:
+            self.run = getattr(script_module, self.run_method, "run")
+
+
+    def execute(self):
+        step_idx = 0
+        task_idx = 0
+        k_pp = self.pipeline_key
+        ctx_pp: Dict[str, Dict] = self.flow_context.pipelines.get(k_pp, {})
+
+        while task_idx < len(self.step_tasks):
+        
+            task_type = self.step_tasks[task_idx]
+            step = self.steps[step_idx]
+            step_name = step.func.__name__
+            ctx_pp.setdefault(step_name, {FlowContext.T_STEP_ITER, 1})
+            n_iter = ctx_pp[step_name][FlowContext.T_STEP_ITER]
+
+            if step.task_type == task_type:
+                self.logger.debug("Pipeline.execute(): "\
+                        f"Executing Pipeline [{self.pipeline_key}];"\
+                        f" Step [{step_name}]; Task index: {task_idx}")
+
+                step.func(self.flow_context)
+
+                if step.error:
+                    self.logger.error("Pipeline.execute(): "\
+                        f"Error in Step [{step_name}] in Pipeline "\
+                        f"[{self.pipeline_key}]!")
+                    return
+
+                n_iter -= 1
+                ctx_pp[step_name][FlowContext.T_STEP_ITER] = n_iter
+
+                if n_iter > 0:
+                    continue 
+                elif step.successor:
+                    step_idx = self.steps.index(
+                        [s for s in self.steps if \
+                                s.func.__name__ == step.successor][0]
+                    )
+                else:
+                    step_idx += 1
+                    task_idx += 1
+            else:
+                step_idx += 1
+
+
+    def step(self, ctx: FlowContext, task_type, 
+                predecessor=None, successor=None, iteration=1):
+        def decorator(func):
+            step_obj = Step(
+                    func, self.flow_context, task_type, 
+                    predecessor, successor)
+            self.steps.append(step_obj)
+
+            step_name = func.__name__
+            ctx.pipelines.setdefault(self.pipeline_key, {})
+            ctx.pipelines[self.pipeline_key][step_name] = \
+                    {FlowContext.T_STEP_ITER: iteration}
+            self.steps.append(Step(func, self.flow_context, task_type, 
+                    predecessor, successor, iteration))
+
+            return func
+        return decorator
+
 
     def context(self, func):
         @wraps(func)
@@ -153,8 +256,8 @@ class Pipeline:
 
     def run(self):
         ctx = self.flow_context
-        if self.main is None:
-            raise ValueError("Pipeline.run(): Misses main function!")
+        if self.run is None:
+            raise ValueError("Pipeline.run(): Misses main run function!")
         else:
-            self.main(ctx, **ctx.direct_inputs)
+            self.run(ctx, **ctx.direct_inputs)
         return 0
