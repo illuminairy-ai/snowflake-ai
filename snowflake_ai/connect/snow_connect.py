@@ -70,7 +70,7 @@ class SnowConnect(DataConnect):
         ):
         super().__init__(connect_key, app_config)
         self.logger = SnowConnect._logger
-        
+
         if not (self.connect_group == DataConnect.K_DATA_CONN and \
                 self.connect_params):
             self.logger.error(
@@ -113,7 +113,7 @@ class SnowConnect(DataConnect):
                     self.oauth_connect = ClientCredsConnect(
                             self.oauth_connect_ref,
                             self.app_config
-                        )                     
+                        )               
 
                 AppConnect._connects[self.oauth_connect_ref] = \
                         self.oauth_connect
@@ -518,7 +518,7 @@ class SnowConnect(DataConnect):
         if dtok is None:
             dtok = params.get("decoded_access_token")
             token = params.get("access_token")
-
+        
         if dtok is not None and dtok:
             upn:str = dict(dtok).get("upn")
             if upn is None:
@@ -528,7 +528,11 @@ class SnowConnect(DataConnect):
                 upn = dict(dtok).get("sub")
 
             upn = upn.upper()
-        
+            self.logger.debug(
+                f"SnowConnect._do_oauth(): Access_token =>\n"\
+                f"{token}\nDecoded_token =>\n{dtok}\n"
+            )
+
             conn_params = {
                 "account": params["account"],
                 "user": upn,
