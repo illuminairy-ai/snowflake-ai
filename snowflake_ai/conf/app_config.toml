@@ -1,7 +1,8 @@
-# version 0.4.0
+# version 0.5.0
 # all keys should be in lower case
 # use '_' to concat multi_words
-# avoid more than 3-level deep, use "app_short_name" instead
+# avoid more than 3-level deep of overall config, use "app_short_name" for reference to group_key.app_name
+# within a particular section, make sure there are 2-level config reference
 
 [apps]
   type = "streamlit"
@@ -9,13 +10,13 @@
 
   [apps.group_def]
   name = "AI Application Default Group"
-  version = "0.4.0"
+  version = "0.5.0"
 
     [apps.group_def.app1]
     app_short_name = "group0_app1" # used for reference to the app without '.' scope
     type = "notebook"
     name = "Group 0 App 1"
-    version = "0.4.0"
+    version = "0.5.0"
     domain_env = "pov"
     app_path = "apps/group0/app1/"
     script_home = "apps/group0/app1/" # app home script directory
@@ -27,13 +28,16 @@
   [base_apps.group_def]
 
     [base_apps.group_def.app1]
+    # make sure there are 2-level config reference
     app_connects = [
         "oauth_connects.client_creds_group0_app1", 
         "data_connects.snflk_oauth_cc_group0_app1"
     ]
 
+    # make sure there are 2-level config reference
     ml_ops = ["pipeline_flows.group0_app1"] # flows, registry, etc.
 
+    # these might be included for ml_ops in the future release
     data_setups = ["group_def.app1"]
     ml_pipelines = ["group_def.app1"]
 

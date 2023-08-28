@@ -13,7 +13,7 @@ This module contains Device code flow OAuthConnect class.
 __author__ = "Tony Liu"
 __email__ = "tony.liu@yahoo.com"
 __license__ = "Apache License 2.0"
-__version__ = "0.4.0"
+__version__ = "0.5.0"
 
 
 import time
@@ -45,7 +45,6 @@ class DeviceCodeConnect(OAuthConnect):
     """
 
     _logger = logging.getLogger(__name__)
-    _logger.addHandler(logging.StreamHandler(sys.stdout))
 
 
     K_CODE_VERIFIER = "code_verifier"

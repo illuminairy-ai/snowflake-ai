@@ -14,7 +14,7 @@ configuration, and tearing-down of data Environment
 __author__ = "Tony Liu"
 __email__ = "tony.liu@yahoo.com"
 __license__ = "Apache License 2.0"
-__version__ = "0.4.0"
+__version__ = "0.5.0"
 
 
 import os
@@ -56,7 +56,6 @@ class DataSetup:
     """
 
     _logger = logging.getLogger(__name__)
-    _logger.addHandler(logging.StreamHandler(sys.stdout))
 
     def __init__(
         self, 
@@ -65,6 +64,7 @@ class DataSetup:
         data: Optional[Dict[str, DF]] = {},
         app_config: AppConfig = None
     ) -> None:
+        self.logger = DataSetup._logger
         self.datasetup_key = datasetup_key
         self._connect = connect
         self._data = data

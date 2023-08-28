@@ -14,12 +14,13 @@ This module contains SnowEncoder and its child classes to encode column.
 __author__ = "Tony Liu"
 __email__ = "tony.liu@yahoo.com"
 __license__ = "Apache License 2.0"
-__version__ = "0.2.0"
+__version__ = "0.5.0"
 
 
 from typing import (
     Dict, Union, Optional, List
 )
+import logging
 
 from pandas import DataFrame as DF
 import json
@@ -40,6 +41,7 @@ class SnowEncoder:
     T_PROC_DROP = -1
     T_PROC_SKIP = 0
     T_PROC_GEN = 1
+    _logger = logging.getLogger(__name__)
 
     def __init__(
             self,
@@ -62,6 +64,7 @@ class SnowEncoder:
                  0 - skip columns keeping as it is
                  1 - default to generate matching unknown columns
         """
+        self.logger = SnowEncoder._logger
         self.input_cols = input_cols
         self.output_cols = output_cols
         self.fitted_values = {}

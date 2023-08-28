@@ -14,12 +14,14 @@ data exploration, splits, and preprocessing.
 __author__ = "Tony Liu"
 __email__ = "tony.liu@yahoo.com"
 __license__ = "Apache License 2.0"
-__version__ = "0.2.0"
+__version__ = "0.5.0"
 
 
 from typing import (
     Dict, Union, Optional, List, Iterable
 )
+import logging
+
 from pandas import DataFrame, Series, to_numeric
 
 import matplotlib.pyplot as plt
@@ -41,13 +43,14 @@ class EDA:
         
     """    
     T_DEFAULT_DF = "default"
-
+    _logger = logging.getLogger(__name__)
 
     def __init__(
         self, 
         setup: DataSetup,
         data: Optional[Dict[str, DataFrame]] = {}
     ):
+        self.logger = EDA._logger
         self._setup = setup
         self._active_df = DataFrame()
         self._data = data

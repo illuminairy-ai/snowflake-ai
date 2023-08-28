@@ -14,7 +14,7 @@ connection.
 __author__ = "Tony Liu"
 __email__ = "tony.liu@yahoo.com"
 __license__ = "Apache License 2.0"
-__version__ = "0.4.0"
+__version__ = "0.5.0"
 
 
 import os
@@ -60,7 +60,6 @@ class SnowConnect(DataConnect):
     T_AUTH_OAUTH = AppConnect.T_AUTH_OAUTH
 
     _logger = logging.getLogger(__name__)
-    _logger.addHandler(logging.StreamHandler(sys.stdout))
 
 
     def __init__(
@@ -182,6 +181,7 @@ class SnowConnect(DataConnect):
                     "SnowConnect.create_connection(): Use create_session "\
                     "to create externalbrowser enabled connection."
                 )
+
             elif auth == AppConnect.T_AUTH_OAUTH:
                 if self.oauth_flow_type == AppConfig.T_OAUTH_CREDS:
                     if self.oauth_connect is None:
@@ -203,6 +203,7 @@ class SnowConnect(DataConnect):
                         "SnowConnect.create_connection(): No action in "\
                         "create_session to create oauth enabled connection!"
                     )
+
         except Exception as e:
             self.logger.exception(
                 f"SnowConnect.create_connection(): Cannot use "\
@@ -298,13 +299,19 @@ class SnowConnect(DataConnect):
             Session: Snowflake connection's session
         """
         usr: str = ctx.get(ConfigKey.USER.value)
+
         session: Session = None
         if self.auth_type == self.T_AUTH_EXT_BROWSER:
             if usr is not None and usr:
                 self.connect_params[ConfigKey.USER.value] = usr
             session = self._do_externalbrowser_auth(self.connect_params)
+
         elif self.auth_type == self.T_AUTH_OAUTH:
             session = self._do_oauth(self.connect_params, ctx)
+
+        elif self.auth_type == self.T_AUTH_SNOWFLAKE:
+            session = self._do_snowflake_auth(self.connect_params)
+
         return session
     
 
@@ -319,10 +326,12 @@ class SnowConnect(DataConnect):
                 ((self.auth_type == self.T_AUTH_KEYPAIR) or
                  (self.auth_type == self.T_AUTH_SNOWFLAKE)):
             return self.get_connection(self.connect_key)
+        
         if (self.connect_type == SnowConnect.T_SNOWFLAKE_CONN) and\
                 (self.auth_type == self.T_AUTH_OAUTH) and \
                 (self.oauth_flow_type == AppConfig.T_OAUTH_CREDS):
             return self.get_connection(self.connect_key)
+        
         else:
             self.logger.error(
                     "SnowConnect.create_service_session(): Error -"\
@@ -345,11 +354,15 @@ class SnowConnect(DataConnect):
                 (self.auth_type == self.T_AUTH_OAUTH) and\
                 (self.oauth_flow_type == AppConfig.T_OAUTH_CREDS):
             return self.create_connection(self.connect_params)
+        
         elif (self.connect_type == SnowConnect.T_SNOWFLAKE_CONN) and\
                 (self.auth_type == self.T_AUTH_OAUTH):
             raise ValueError(
                     "SnowConnect.create_service_session(): Error -"\
                     f"OAuth Client Credentials not yet implemented!")
+
+        elif self.auth_type == self.T_AUTH_SNOWFLAKE:
+            return self.create_connection(self.connect_params)
 
 
     def create_session(self, ctx: Optional[Dict] = {}) -> Session:
@@ -376,6 +389,7 @@ class SnowConnect(DataConnect):
         if session is None:
             if self.auth_type == self.T_AUTH_EXT_BROWSER:
                 session = self._do_externalbrowser_auth(self.connect_params)
+
             elif self.auth_type == self.T_AUTH_OAUTH:
                 if not ctx:
                     cc: ClientCredsConnect = self.oauth_connect
@@ -404,9 +418,11 @@ class SnowConnect(DataConnect):
                 "SnowConnect._create_session(): Session creation "\
                 f"- Auth_type [{auth_type}]; Connect_params => {conn_params}."
             )
+
             session = Session.builder.configs(conn_params).create() 
             c = session.sql("select current_warehouse(), current_role()")\
                 .collect()
+            
             self.logger.debug(
                 "SnowConnect._create_session(): Session creation "\
                 f"[OK]; Warehouse, Role: [{c}]"
@@ -554,6 +570,7 @@ class SnowConnect(DataConnect):
         """
         auth_t = self.auth_type
         rs = False
+
         if auth_t == AppConnect.T_AUTH_EXT_BROWSER:
             rs = False
         elif auth_t == AppConnect.T_AUTH_KEYPAIR:
@@ -563,7 +580,9 @@ class SnowConnect(DataConnect):
             rs = True
         elif (auth_t == AppConfig.T_OAUTH):
             rs = False
-            
+        elif (auth_t == AppConfig.T_AUTH_SNFLK):
+            rs = True
+
         self.logger.debug(
                 f"SnowConnect.is_service_connect(): AuthType "\
                 f"[{self.auth_type}]; Is_service_connect [{rs}]."

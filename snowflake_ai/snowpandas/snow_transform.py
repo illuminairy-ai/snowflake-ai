@@ -13,10 +13,12 @@ This module contains an utility class of SnowTransform
 __author__ = "Tony Liu"
 __email__ = "tony.liu@yahoo.com"
 __license__ = "Apache License 2.0"
-__version__ = "0.3.0"
+__version__ = "0.5.0"
 
 
 from typing import Optional, Union, Tuple, List
+import logging
+
 from datetime import *
 from dateutil.relativedelta import *
 import snowflake.snowpark.functions as F
@@ -32,7 +34,8 @@ class SnowTransform:
     dataframe including creating columns and tables for ease of time series
     data analysis.
     """
-
+    _logger = logging.getLogger(__name__)
+    
     @staticmethod
     def create_year_column(
         sdf: SDF, 

@@ -14,12 +14,13 @@ This module contains SnowEDA and SnowPrep class specific for
 __author__ = "Tony Liu"
 __email__ = "tony.liu@yahoo.com"
 __license__ = "Apache License 2.0"
-__version__ = "0.3.0"
+__version__ = "0.5.0"
 
 
 from typing import (
     Dict, Union, Optional, List
 )
+import logging
 
 from pandas import DataFrame as DF
 import json
@@ -52,12 +53,15 @@ class SnowEDA(EDA):
         >>> eda: SnowEDA = SnowEDA(setup)
     
     """
+    _logger = logging.getLogger(__name__)
+
     def __init__(
         self, 
         setup: SnowSetup,
         dfs: Optional[Dict[str, SDF]] = None
     ):
         super().__init__(setup)
+        self.logger = SnowEDA._logger
         self._sdf = SDF()
         if dfs is not None and isinstance(dfs, Dict):
             for _, value in dfs.items():
@@ -174,6 +178,7 @@ class SnowPrep(DataPrep):
         >>> sp: SnowPrep = SnowPrep(setup)
     
     """
+    _logger = logging.getLogger(__name__)
 
     def __init__(
         self, 
@@ -181,7 +186,8 @@ class SnowPrep(DataPrep):
         dfs: Optional[Union[SDF, Dict[str, SDF]]] = None
     ):
         super().__init__(setup)
-
+        self.logger = SnowPrep._logger
+        
     
     @property
     def data_setup(self) -> SnowSetup:

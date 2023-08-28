@@ -14,7 +14,7 @@ application integration connection for data, security, etc.
 __author__ = "Tony Liu"
 __email__ = "tony.liu@yahoo.com"
 __license__ = "Apache License 2.0"
-__version__ = "0.4.0"
+__version__ = "0.5.0"
 
 
 import sys
@@ -48,7 +48,6 @@ class AppConnect:
     ]
 
     _logger = logging.getLogger(__name__)
-    _logger.addHandler(logging.StreamHandler(sys.stdout))
 
     # all configurations
     _configs = {}

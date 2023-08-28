@@ -13,7 +13,7 @@ This module contains StreamlitApp class representing an application
 __author__ = "Tony Liu"
 __email__ = "tony.liu@yahoo.com"
 __license__ = "Apache License 2.0"
-__version__ = "0.3.0"
+__version__ = "0.5.0"
 
 
 import os
@@ -62,7 +62,6 @@ class StreamlitApp(BaseApp):
     """
 
     _logger = logging.getLogger(__name__)
-    _logger.addHandler(logging.StreamHandler(sys.stdout))
 
     K_PAGE = "page"
     K_PRE_PAGE = "previous_page"
@@ -86,7 +85,7 @@ class StreamlitApp(BaseApp):
             config_file: file name string for custom config load
         """
         super().__init__(app_key, config_dir, config_file)
-        self.logger = AppConfig._logger
+        self.logger = self._logger
         if StreamlitApp.T_ST_APP != self.type:
             raise TypeError(
                 "StreamlitApp.init(): Application type configuration Error."

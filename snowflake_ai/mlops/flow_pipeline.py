@@ -14,7 +14,7 @@ building, training, validation and testing in DEV domain.
 __author__ = "Tony Liu"
 __email__ = "tony.liu@yahoo.com"
 __license__ = "Apache License 2.0"
-__version__ = "0.4.0"
+__version__ = "0.5.0"
 
 
 import logging
@@ -63,6 +63,7 @@ class TaskType(Enum):
 
 class Step:
 
+    _logger = logging.getLogger(__name__)
     _step_id = 0
 
     def __init__(
@@ -91,6 +92,7 @@ class Pipeline:
     This class provides general setup for MLops flow in
     model building, training, validation and testing. 
     """
+    _logger = logging.getLogger(__name__)
 
     def __init__(
             self, 
@@ -98,7 +100,7 @@ class Pipeline:
             ctx: FlowContext = None,
             app_config: AppConfig = None
     ) -> None:
-        self.logger = logging.getLogger(__name__)
+        self.logger = Pipeline._logger
         self.pipeline_key = pipeline_key
         _, self.pipeline_name = AppConfig.split_group_key(self.pipeline_key)
         if ctx is None:

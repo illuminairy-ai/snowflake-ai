@@ -13,11 +13,12 @@ This module contains AppTab class representing an application page tab.
 __author__ = "Tony Liu"
 __email__ = "tony.liu@yahoo.com"
 __license__ = "Apache License 2.0"
-__version__ = "0.2.0"
+__version__ = "0.5.0"
 
 
 from typing import Optional, List, Dict, Callable
 from functools import wraps
+import logging
 
 from snowflake.snowpark.session import Session
 import streamlit as st
@@ -42,6 +43,7 @@ class PageTab:
         ...
         >>> home_page = AppPage("home", "Home", page_home)
     """
+    _logger = logging.getLogger(__name__)
 
     def __init__(
         self, 
@@ -97,6 +99,7 @@ class TabRegistry:
         ...     st.title("Home")
         ...     st.write("Welcome to the Home page!")
     """
+    _logger = logging.getLogger(__name__)
 
     def __init__(self):
         self.tab_list: List[PageTab] = []

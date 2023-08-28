@@ -14,7 +14,7 @@ of MLOps flow
 __author__ = "Tony Liu"
 __email__ = "tony.liu@yahoo.com"
 __license__ = "Apache License 2.0"
-__version__ = "0.4.0"
+__version__ = "0.5.0"
 
 
 import logging
@@ -42,7 +42,7 @@ class FlowContext:
     FLG_DEF = 0
     T_STEP_ITER = "iteration"
 
-
+    _logger = logging.getLogger(__name__)
 
     def __init__(self) -> None:
         self.logger = logging.getLogger(__name__)

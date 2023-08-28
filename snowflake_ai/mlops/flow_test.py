@@ -14,10 +14,12 @@ test/stage domain/environment
 __author__ = "Tony Liu"
 __email__ = "tony.liu@yahoo.com"
 __license__ = "Apache License 2.0"
-__version__ = "0.3.0"
+__version__ = "0.5.0"
 
 
+import logging
 from snowflake_ai.mlops import Pipeline
+
 
 
 class FlowTest(Pipeline):
@@ -25,6 +27,7 @@ class FlowTest(Pipeline):
     This module contains FlowTest class for testing ML flow targeting
     test/stage domain/environment
     """
+    _logger = logging.getLogger(__name__)
 
     def __init__(self) -> None:
         super().__init__()

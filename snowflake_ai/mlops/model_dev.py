@@ -9,15 +9,16 @@
 __author__ = "Tony Liu"
 __email__ = "tony.liu@yahoo.com"
 __license__ = "Apache License 2.0"
-__version__ = "0.2.0"
+__version__ = "0.5.0"
 
-
+import logging
 import numpy as np
 
 
 
 class Metrics:
 
+    _logger = logging.getLogger(__name__)
 
     @staticmethod
     def mean_absolute_percentage_error(y_true, y_pred): 

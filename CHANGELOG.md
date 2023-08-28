@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.5.0
+
+*Release date*: 2023-08-28
+
+### Added
+
+* Update dependencies of Snowpark and Python connector version, and logging
+
+
 ## 0.4.0
 
 *Release date*: 2023-08-22
@@ -36,4 +45,4 @@
 
 ### Added
 
-* setup initial framework
+* Initial Framework Setup

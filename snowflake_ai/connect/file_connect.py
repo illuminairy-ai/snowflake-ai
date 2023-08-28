@@ -21,7 +21,7 @@ Example:
 __author__ = "Tony Liu"
 __email__ = "tony.liu@yahoo.com"
 __license__ = "Apache License 2.0"
-__version__ = "0.3.0"
+__version__ = "0.5.0"
 
 
 import os

@@ -14,7 +14,7 @@ connection configuration.
 __author__ = "Tony Liu"
 __email__ = "tony.liu@yahoo.com"
 __license__ = "Apache License 2.0"
-__version__ = "0.4.0"
+__version__ = "0.5.0"
 
 
 import sys
@@ -46,7 +46,6 @@ class DataConnect(AppConnect):
     K_INIT_LIST = ConfigKey.INIT_LIST.value
 
     _logger = logging.getLogger(__name__)
-    _logger.addHandler(logging.StreamHandler(sys.stdout))
 
     _initialized = False
 

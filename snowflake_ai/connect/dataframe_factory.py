@@ -14,7 +14,7 @@ DataFrame or Snowflake DataFrame depending on context.
 __author__ = "Tony Liu"
 __email__ = "tony.liu@yahoo.com"
 __license__ = "Apache License 2.0"
-__version__ = "0.3.0"
+__version__ = "0.5.0"
 
 
 import os
@@ -70,6 +70,7 @@ class DataFrameFactory:
         ... # create pandas dataframe
         >>> df = DataFrameFactory.create_df([0, 1, 2], columns=['number'])
     """
+    _logger = logging.getLogger(__name__)
 
     @classmethod
     def create_df(

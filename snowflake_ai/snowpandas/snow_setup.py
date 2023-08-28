@@ -14,10 +14,12 @@ initialization, configuration, and tearing-down of Snowflake environment
 __author__ = "Tony Liu"
 __email__ = "tony.liu@yahoo.com"
 __license__ = "Apache License 2.0"
-__version__ = "0.3.0"
+__version__ = "0.5.0"
 
 
 from typing import Optional, Dict, Optional
+import logging
+
 from snowflake.snowpark import DataFrame as SDF
 
 from snowflake_ai.common import AppConfig
@@ -40,6 +42,9 @@ class SnowSetup(DataSetup):
         >>> setup: SnowSetup = SnowSetup(conn)
         >>> setup.create_stage()
     """
+
+    _logger = logging.getLogger(__name__)
+
     def __init__(
             self, datasetup_key: str, 
             connect: SnowConnect,
@@ -53,6 +58,7 @@ class SnowSetup(DataSetup):
             app_config
         )
         self._snow_dfs = data
+        self.logger = SnowSetup._logger
 
 
     def get_connect(self) -> SnowConnect:

@@ -14,7 +14,7 @@ targeting production domain/environment
 __author__ = "Tony Liu"
 __email__ = "tony.liu@yahoo.com"
 __license__ = "Apache License 2.0"
-__version__ = "0.4.0"
+__version__ = "0.5.0"
 
 
 import logging
@@ -46,6 +46,7 @@ class PipelineFlow:
     serving the model, monitor and re-train the model 
     (To-DO).
     """
+    _logger = logging.getLogger(__name__)
 
     def __init__(
             self,
@@ -54,7 +55,7 @@ class PipelineFlow:
             app_config: AppConfig = None            
     ) -> None:
         super().__init__()
-        self.logger = logging.getLogger(__name__)
+        self.logger = PipelineFlow._logger
 
 
     def execute(self):

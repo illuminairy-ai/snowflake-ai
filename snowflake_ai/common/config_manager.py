@@ -13,21 +13,13 @@ This module contains ConfigManager class for managing AppConfig objects
 __author__ = "Tony Liu"
 __email__ = "tony.liu@yahoo.com"
 __license__ = "Apache License 2.0"
-__version__ = "0.4.0"
+__version__ = "0.5.0"
 
 
 import logging
 from typing import Dict, List, Optional, Union
 
 from snowflake_ai.common import AppConfig
-
-
-# Configure logging
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s [%(levelname)s]  %(message)s'
-)
-
 
 
 class ConfigManager:
