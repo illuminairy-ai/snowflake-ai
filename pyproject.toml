@@ -4,7 +4,7 @@ build-backend = "poetry.core.masonry.api"
 
 [tool.poetry]
 name = "snowflake-ai"
-version = "0.5.2"
+version = "0.5.1"
 description = "A Snowflake centic Enterprise AI/ML framework with tight integration of popular data science libraries"
 authors = ["Illuminairy AI <tony.liu@yahoo.com>"]
 license = "Apache Software License 2"
