@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.5.1
+## 0.5.3
 
 *Release date*: 2023-09-11
 

@@ -5,7 +5,7 @@ with open("README.md", "r") as fh:
 
 setuptools.setup(
     name="snowflake-ai",
-    version="0.5.1",
+    version="0.5.3",
     author="Illuminairy AI",
     author_email="tony.liu@yahoo.com",
     description="A Snowflake centic Enterprise AI/ML framework with tight integration of popular data science libraries",
