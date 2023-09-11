@@ -1,9 +1,9 @@
 package:
   name: "snowflake-ai"
-  version: "0.5.3"
+  version: "0.5.4"
 
 source:
-  git_rev: v0.5.3
+  git_rev: v0.5.4
   git_url: https://github.com/illuminairy-ai/snowflake-ai
 
 requirements:
@@ -28,10 +28,15 @@ requirements:
     - pyjwt
     - altair
 
+outputs:
+  - name: "snowflake-ai"
+    files:
+      - lib/python3.10/site-packages/*
+
 about:
   home: https://github.com/illuminairy-ai/snowflake-ai
   license: Apache Software License 2
-  license_family: Apache Software License
+  license_family: APACHE
   license_file: LICENSE.txt
   summary: "A Snowflake centic Enterprise AI/ML framework with tight integration of popular data science libraries"
 
