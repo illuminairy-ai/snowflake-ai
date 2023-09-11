@@ -13,7 +13,7 @@ This module contains a default base application
 __author__ = "Tony Liu"
 __email__ = "tony.liu@yahoo.com"
 __license__ = "Apache License 2.0"
-__version__ = "0.5.0"
+__version__ = "0.5.1"
 
 
 import os
@@ -98,7 +98,7 @@ class BaseApp:
         self.all_configs = AppConfig.get_all_configs()
         self.app_key = ac.app_key
         self.root_path = ac.root_path
-        self.app_config = ac.app_config
+        self.app_configs = ac.app_config
         self.app_name = ac.app_name
         self.app_group = ac.app_group
         self.app_short_name = ac.app_short_name
@@ -136,6 +136,7 @@ class BaseApp:
 
         # overridden by children    
         session: Session = self.get_snowflake_session({})
+        print(f"[TL] base app get session => {session}")
         if session is not None:
             self.default_context.session = session
             self.set_traditional_western_week_policy(session)
@@ -173,10 +174,61 @@ class BaseApp:
         
         if session is None:
             return DFF.create_df(data, None, columns, index, dtype)
-        else:
-            return DFF.create_df(
+        
+        sdf: SDF
+        try:
+            sdf = DFF.create_df(
                 data, session, columns, index, dtype
             )
+        except Exception as e:
+            conn: SnowConnect = self.snow_connect
+            session = conn.create_service_session()
+            sdf = DFF.create_df(
+                data, session, columns, index, dtype
+            )
+            self.default_context.session = session
+        return sdf
+
+
+    def to_pandas_df(
+            self, 
+            sdf: SDF,
+            conn: SnowConnect = None,
+            drop_cols: List = []
+        ) -> DF:
+        if conn is None:
+            conn = self.snow_connect
+        session = self.default_context.session
+        if session is None:
+            self.logger.error("BaseApp.to_pandas_df(): Session is None "\
+                    f"from default context. Connect [{conn.connect_key}].")
+            return None
+        df_rs, session = conn.to_pandas_df(sdf, session, drop_cols)
+        self.default_context.session = session
+        return df_rs
+
+
+    def drop_table(self, full_tbl_name: str, session: Session = None) -> str:
+        if session is None:
+            session = self.default_context.session
+        rs = SnowConnect.dcl(session, f"drop table if exists {full_tbl_name}")
+        return f"{rs[0][0]}"
+
+
+    def get_all_configurations(self) -> Dict:
+        return self.all_configs
+    
+
+    def get_app_configurations(self) -> Dict:
+        return self.app_configs
+    
+
+    def get_app_config(self) -> AppConfig:
+        return self.appconf
+    
+
+    def set_app_config(self, appconf: AppConfig):
+        self.appconf = appconf
 
 
     def get_default_snow_connect(self) -> SnowConnect:

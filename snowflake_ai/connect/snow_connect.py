@@ -14,18 +14,19 @@ connection.
 __author__ = "Tony Liu"
 __email__ = "tony.liu@yahoo.com"
 __license__ = "Apache License 2.0"
-__version__ = "0.5.0"
+__version__ = "0.5.1"
 
 
 import os
 import sys
 import logging
 import types
-from typing import List, Dict, Iterator, Optional
+from typing import List, Dict, Iterator, Optional, Tuple
 
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives import serialization
 
+import pandas as pd
 from pandas import DataFrame as DF
 
 from snowflake.snowpark import Session
@@ -409,6 +410,40 @@ class SnowConnect(DataConnect):
         Close current snowflake connection and session.
         """
         self.close_connection()
+
+
+    def to_pandas_df(
+            self, 
+            sdf: SDF, 
+            session: Session = None,
+            drop_cols: List = []
+        ) -> Tuple[DF, Session]:
+        """
+        Create pandas dataframe based on Snowflake dataframe.
+
+        Return:
+            DF - Pandas dataframe.
+            Session - new Snowflake active session.
+        """
+        if session is None:
+            session = self.create_connection()
+        
+        if not SnowConnect.is_session_active(session):
+            session = self.create_connection()
+    
+        df_rs: DF
+        i = 0
+        itr = sdf.to_pandas_batches()
+        for df in itr:
+            if drop_cols:
+                df = df.drop(drop_cols, axis=1)
+            if i == 0:
+                df_rs = df
+            else:
+                df_rs = pd.concat([df_rs, df])
+            i += 1
+
+        return (df_rs, session)
 
 
     def _create_session(self, auth_type: str, conn_params) -> Session:

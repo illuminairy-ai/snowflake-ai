@@ -4,7 +4,7 @@ build-backend = "poetry.core.masonry.api"
 
 [tool.poetry]
 name = "snowflake-ai"
-version = "0.5.0"
+version = "0.5.1"
 description = "A Snowflake centic Enterprise AI/ML framework with tight integration of popular data science libraries"
 authors = ["Illuminairy AI <tony.liu@yahoo.com>"]
 license = "Apache Software License 2"
@@ -22,18 +22,18 @@ classifiers = [
 
 [tool.poetry.dependencies]
 python = ">=3.8.10,<3.11, !=3.9.7"
-pandas = "1.5.3"
+pandas = "~1.5.3"
 toml = "~0.10.2"
-importlib-resources = "~5.12.0"
+importlib-resources = ">=5.2.0, <=5.12.0"
 snowflake-connector-python = {version = ">= 3.1.0", extras = ["pandas"]}
 snowflake-snowpark-python = ">= 1.5.0"
-psutil = "5.9.0"
-cryptography = "40.0.1"
-mpmath = "1.2.1"
-urllib3 = "1.26.15"
-requests = "2.28.1"
-scikit-learn = "1.2.2"
-numpy = "1.23.5"
+psutil = "~5.9.0"
+cryptography = ">=40.0.2, <42"
+mpmath = "~1.2.1"
+urllib3 = "~1.26.15" #1.26.16
+requests = ">=2.28.1,<=2.31.0"
+scikit-learn = "~1.2.2"
+numpy = "~1.23.5"
 streamlit = "~1.18.0"
-pyjwt = "2.7.0"
+pyjwt = "~2.7.0"
 altair = "~4.0.0"

@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.5.1
+
+*Release date*: 2023-09-11
+
+### Added
+
+* Add Anaconda release
+
+
 ## 0.5.0
 
 *Release date*: 2023-08-28

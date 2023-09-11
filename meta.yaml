@@ -1,0 +1,42 @@
+package:
+  name: "snowflake-ai"
+  version: "0.5.1"
+
+source:
+  git_rev: v0.5.1
+  git_url: https://github.com/illuminairy-ai/snowflake-ai
+
+requirements:
+  host:
+    - python
+    - setuptools
+  build:
+    - python
+  run:
+    - python
+    - toml
+    - pandas
+    - importlib-resources
+    - snowflake-connector-python
+    - snowflake-snowpark-python
+    - psutil
+    - cryptography
+    - mpmath
+    - urllib3
+    - requests
+    - scikit-learn
+    - numpy
+    - streamlit
+    - pyjwt
+    - altair
+
+about:
+  home: https://github.com/illuminairy-ai/snowflake-ai
+  license: Apache Software License 2
+  license_familY: Apache Software License
+  license_file: LICENSE.txt
+  summary: "A Snowflake centic Enterprise AI/ML framework with tight integration of popular data science libraries"
+
+extra:
+  recipe-maintainers:
+    - illuminairy-ai
