@@ -1,9 +1,9 @@
 package:
   name: "snowflake-ai"
-  version: "0.5.1"
+  version: "0.5.2"
 
 source:
-  git_rev: v0.5.1
+  git_rev: v0.5.2
   git_url: https://github.com/illuminairy-ai/snowflake-ai
 
 requirements:
@@ -16,7 +16,6 @@ requirements:
     - python
     - toml
     - pandas
-    - importlib-resources
     - snowflake-connector-python
     - snowflake-snowpark-python
     - psutil
@@ -25,7 +24,6 @@ requirements:
     - urllib3
     - requests
     - scikit-learn
-    - numpy
     - streamlit
     - pyjwt
     - altair
