@@ -1,4 +1,4 @@
-# version 0.5.0
+# version 0.5.5
 # all keys should be in lower case
 # use '_' to concat multi_words
 # avoid more than 3-level deep of overall config, use "app_short_name" for reference to group_key.app_name
@@ -10,13 +10,13 @@
 
   [apps.group_def]
   name = "AI Application Default Group"
-  version = "0.5.0"
+  version = "0.5.5"
 
     [apps.group_def.app1]
     app_short_name = "group0_app1" # used for reference to the app without '.' scope
     type = "notebook"
     name = "Group 0 App 1"
-    version = "0.5.0"
+    version = "0.5.5"
     domain_env = "pov"
     app_path = "apps/group0/app1/"
     script_home = "apps/group0/app1/" # app home script directory

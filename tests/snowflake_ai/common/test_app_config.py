@@ -1,12 +1,15 @@
-from snowflake_ai.common import AppConfig, DataConnect
+from snowflake_ai.common import AppConfig, ConfigType
 
-def test_init():
-    AppConfig("app_1")
-    b = AppConfig("group_1.app_1")
-    # two apps are initialized
-    assert len(b.apps) == 2
+
+def test_init_app():
+    a = AppConfig("group_def.app1")
+    assert a.app_key == "group_def.app1"
+
+def test_base_app():
+    a = AppConfig("group_def.app1")
+    ba = a.get_all_configs().get(ConfigType.BaseApps.value)
+    assert len(ba) > 0
 
 
 if __name__ == '__main__':
-    conn = DataConnect("snowflake_default")
-    print(f"DEBUG: all connects => {conn.app_connects}")
+    test_init_app()

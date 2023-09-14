@@ -4,7 +4,7 @@ build-backend = "poetry.core.masonry.api"
 
 [tool.poetry]
 name = "snowflake-ai"
-version = "0.5.4"
+version = "0.5.5"
 description = "A Snowflake centic Enterprise AI/ML framework with tight integration of popular data science libraries"
 authors = ["Illuminairy AI <tony.liu@yahoo.com>"]
 license = "Apache Software License 2"
@@ -37,3 +37,4 @@ scikit-learn = "~1.2.2"
 streamlit = "~1.18.0"
 pyjwt = "~2.7.0"
 altair = ">=4.0.0, <5.0.0"
+pytest = "^7.4.2"

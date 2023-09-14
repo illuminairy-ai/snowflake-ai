@@ -18,7 +18,7 @@ __version__ = "0.5.0"
 
 
 import logging
-from snowflake_ai.mlops import Pipeline
+from snowflake_ai.mlops import Pipeline, FlowContext
 
 
 
@@ -29,8 +29,8 @@ class FlowTest(Pipeline):
     """
     _logger = logging.getLogger(__name__)
 
-    def __init__(self) -> None:
-        super().__init__()
+    def __init__(self, pipeline_key) -> None:
+        super().__init__(pipeline_key)
 
 
     @Pipeline.flow
@@ -47,9 +47,9 @@ class FlowTest(Pipeline):
 
     @Pipeline.flow
     def task_3(self):
-        ctx = self.flow_context
+        ctx: FlowContext = self.flow_context
         ns = [x["a"] for x in ctx.context_inputs if "a" in x]
-        ctx.output = {"sum" : sum(ns)}
+        ctx.outputs = {"sum" : sum(ns)}
         return self
     
 
@@ -59,5 +59,5 @@ class FlowTest(Pipeline):
     
 
 if __name__ == '__main__':
-    t = FlowTest()
+    t = FlowTest("default")
     t.test_main()
